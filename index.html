@@ -6,6 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#0f0f0f">
+<link rel="icon" id="favicon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔒</text></svg>">
 <title>隐私聊天</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
@@ -91,6 +92,41 @@ input,button{font-family:inherit;font-size:16px;-webkit-appearance:none;appearan
 .iv.open{display:flex}
 .iv img{max-width:95%;max-height:95%;object-fit:contain}
 
+/* Toast Notification - ALWAYS inside style tag */
+.toast{position:fixed;top:-150px;left:50%;transform:translateX(-50%);width:calc(100% - 24px);max-width:420px;background:linear-gradient(135deg,#1a1a2e 0%,#16213e 100%);border:2px solid #e94560;border-radius:14px;padding:14px 16px;z-index:99998;display:flex;align-items:center;gap:12px;transition:top .4s cubic-bezier(0.34,1.56,0.64,1);cursor:pointer;box-shadow:0 8px 32px rgba(233,69,96,.5),0 0 0 1px rgba(233,69,96,.2)}
+.toast.show{top:12px}
+.toast-icon{width:42px;height:42px;background:linear-gradient(135deg,#e94560,#c23152);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;animation:toastPulse 1.5s ease infinite}
+@keyframes toastPulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.15);opacity:.8}}
+.toast-body{flex:1;min-width:0;overflow:hidden}
+.toast-title{font-size:13px;font-weight:700;color:#e94560;margin-bottom:3px}
+.toast-text{font-size:14px;color:#eee;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* Notification Button */
+.notif-btn{background:none;border:1px solid #2a2a4a;color:#eee;padding:4px 10px;border-radius:8px;font-size:16px;cursor:pointer;position:relative;display:flex;align-items:center;justify-content:center;min-width:40px;min-height:32px}
+.notif-btn:active{background:rgba(255,255,255,.08)}
+.notif-btn.muted{opacity:.4}
+.notif-badge{position:absolute;top:-8px;right:-8px;background:#e94560;color:#fff;font-size:10px;font-weight:700;min-width:18px;height:18px;border-radius:9px;display:flex;align-items:center;justify-content:center;padding:0 4px;box-shadow:0 2px 6px rgba(233,69,96,.5)}
+
+/* Offline Summary Overlay */
+.offline-summary{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.7);z-index:99997;align-items:center;justify-content:center;padding:20px}
+.offline-summary.show{display:flex}
+.offline-box{background:#1a1a2e;border:2px solid #e94560;border-radius:16px;padding:28px 24px;max-width:360px;width:100%;text-align:center;animation:slideUp .3s ease}
+@keyframes slideUp{from{transform:translateY(30px);opacity:0}to{transform:translateY(0);opacity:1}}
+.offline-box .ob-icon{font-size:48px;margin-bottom:12px}
+.offline-box .ob-title{font-size:18px;font-weight:700;color:#e94560;margin-bottom:8px}
+.offline-box .ob-count{font-size:42px;font-weight:800;color:#fff;margin:10px 0}
+.offline-box .ob-label{font-size:13px;color:#999;margin-bottom:16px}
+.offline-box .ob-detail{font-size:12px;color:#aaa;text-align:left;margin-bottom:16px;max-height:150px;overflow-y:auto;padding:10px;background:#0f0f0f;border-radius:8px;border:1px solid #2a2a4a}
+.offline-box .ob-detail .od-item{padding:4px 0;border-bottom:1px solid #1a1a2e;display:flex;gap:6px}
+.offline-box .ob-detail .od-item:last-child{border-bottom:none}
+.offline-box .ob-detail .od-name{color:#e94560;font-weight:600;white-space:nowrap}
+.offline-box .ob-detail .od-text{color:#ccc;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.offline-box .ob-btn{background:#e94560;color:#fff;border:none;padding:12px 32px;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;width:100%}
+.offline-box .ob-btn:active{opacity:.8}
+
+/* Toggle Tip */
+.toggle-tip{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(26,26,46,.95);color:#eee;padding:14px 28px;border-radius:12px;font-size:15px;z-index:99999;border:1px solid #e94560;pointer-events:none;transition:opacity .3s;box-shadow:0 4px 20px rgba(0,0,0,.5)}
+
 @media(max-width:600px){.m{max-width:85%}.escroll{height:150px}}
 </style>
 </head>
@@ -110,7 +146,7 @@ input,button{font-family:inherit;font-size:16px;-webkit-appearance:none;appearan
 <div class="chat" id="chatView">
 <div class="hdr">
 <div class="hdr-l"><div class="hdr-logo">🔒</div><div class="hdr-t">隐私聊天室</div></div>
-<div class="hdr-r"><span class="ubadge" id="hdrUser"></span><button class="notif-btn" id="btnNotif" title="消息提醒">🔔<span class="notif-badge" id="notifBadge" style="display:none">0</span></button><button class="lout" id="btnLogout">退出</button></div>
+<div class="hdr-r"><span class="ubadge" id="hdrUser"></span><button class="notif-btn" id="btnNotif" title="消息提醒开关">🔔<span class="notif-badge" id="notifBadge" style="display:none">0</span></button><button class="lout" id="btnLogout">退出</button></div>
 </div>
 <div class="obar"><span class="odot"></span><span>在线：</span><span id="hdrOnline">-</span></div>
 <div class="msgs" id="msgsBox"></div>
@@ -140,11 +176,24 @@ input,button{font-family:inherit;font-size:16px;-webkit-appearance:none;appearan
 
 <div class="iv" id="imgViewer"><img id="viewImg" src=""></div>
 
+<!-- Toast Notification -->
 <div class="toast" id="toast">
 <div class="toast-icon">💬</div>
 <div class="toast-body">
 <div class="toast-title" id="toastTitle"></div>
 <div class="toast-text" id="toastText"></div>
+</div>
+</div>
+
+<!-- Offline Summary Overlay -->
+<div class="offline-summary" id="offlineSummary">
+<div class="offline-box">
+<div class="ob-icon">💬</div>
+<div class="ob-title">你有新消息</div>
+<div class="ob-count" id="obCount">0</div>
+<div class="ob-label">条未读消息</div>
+<div class="ob-detail" id="obDetail"></div>
+<button class="ob-btn" id="obBtn">查看消息</button>
 </div>
 </div>
 
@@ -167,7 +216,7 @@ var EC=[
 {n:'😀',e:['😀','😃','😄','😁','😆','😅','🤣','😂','🙂','🙃','😉','😊','😇','🥰','😍','🤩','😘','😗','☺️','😚','😙','🥲','😋','😛','😜','🤪','😝','🤑','🤗','🤭','🫢','🫣','🤫','🤔','🫡','🤐','🤨','😐','😑','😶','😏','😒','🙄','😬','😮‍💨','🤥','😌','😔','😪','🤤','😴','😷','🤒','🤕','🤢','🤮','🤧','🥵','🥶','🥴','😵','😵‍💫','🤯','🤠','🥳','🥸','😎','🤓','🧐','😕','😟','🙁','☹️','😮','😯','😲','😳','🥺','🥹','😦','😧','😨','😰','😥','😢','😭','😱','😖','😣','😞','😓','😩','😫','🥱','😤','😡','😠','🤬','😈','👿','💀','☠️','💩','🤡','👹','👺','👻','👽','👾','🤖']},
 {n:'👋',e:['👋','🤚','🖐️','✋','🖖','🫱','🫲','🫳','🫴','👌','🤌','🤏','✌️','🤞','🫰','🤟','🤘','🤙','👈','👉','👆','🖕','👇','☝️','🫵','👍','👎','✊','👊','🤛','🤜','👏','🙌','🫶','👐','🤲','🤝','🙏','💪','🦾','🦵','🦶','👂','🦻','👃','🧠','🫀','🫁','🦷','🦴','👀','👁️','👅','👄','🫦','💋']},
 {n:'❤️',e:['❤️','🧡','💛','💚','💙','💜','🖤','🤍','🤎','💔','❣️','💕','💞','💓','💗','💖','💘','💝','💟','♥️','💯','💢','💥','💫','💦','💨','💤','🕳️','💬','👁️‍🗨️','🗨️','🗯️','💭','♠️','♣️','♥️','♦️','🃏','🀄','🎴']},
-{n:'🐶',e:['🐶','🐱','🐭','🐹','🐰','🦊','🐻','🐼','🐨','🐯','🦁','🐮','🐷','🐽','🐸','🐵','🙈','🙉','🙊','🐒','🐔','🐧','🐦','🐤','🐣','🐥','🦆','🦅','🦉','🦇','🐺','🐗','🐴','🦄','🐝','🐛','🦋','🐌','🐞','🐜','🦟','🦗','🕷️','🐢','🐍','🦎','🦖','🦕','🐙','🦑','🦐','🦞','🦀','🐡','🐠','🐟','🐬','🐳','🐋','🦈','🐊','🐅','🐆','🦓','🦍','🦧','🐘','🦛','🦏','🐪','🐫','🦒','🦘','🦬','🐃','🐂','🐄','🐎','🐖','🐏','🐑','🦙','🐐','🦌','🐕','🐩','🐈','🐈‍⬛','🐓','🦃','🦚','🦜','🦢','🦩','🕊️','🐇','🦝','🦨','🦡','🐁','🐀','🐿️','🦔','🐾']},
+{n:'🐶',e:['🐶','🐱','🐭','🐹','🐰','🦊','🐻','🐼','🐨','🐯','🦁','🐮','🐷','🐽','🐸','🐵','🙈','🙉','🙊','🐒','🐔','🐧','🐦','🐤','🐣','🐥','🦆','🦅','🦉','🦇','🐺','🐗','🐴','🦄','🐝','🐛','🦋','🐌','🐞','🐜','🦟','🦗','🕷️','🐢','🐍','🦎','🦖','🦕','🐙','🦑','🦐','🦞','🦀','🐡','🐠','🐟','🐬','🐳','🐋','🦈','🐊','🐅','🐆','🦓','🦍','🦧','🐘','🦛','🦏','🐪','🐫','🦒','🦘','🦬','🐃','🐂','🐄','🐎','🐖','🐏','🐑','🦙','🐐','🦌','🐕','🐩','🐈','🐈‍⬛','🐓','🦃','🐚','🦜','🦢','🦩','🕊️','🐇','🦝','🦨','🦡','🐁','🐀','🐿️','🦔','🐾']},
 {n:'🌸',e:['🌸','💮','🪷','🏵️','🌹','🥀','🌺','🌻','🌼','🌷','🌱','🪴','🌲','🌳','🌴','🌵','🌾','🌿','☘️','🍀','🍁','🍂','🍃','🍄','🍇','🍈','🍉','🍊','🍋','🍌','🍍','🥭','🍎','🍏','🍐','🍑','🍒','🍓','🫐','🥝','🍅','🫒','🥥','🥑','🍆','🥔','🥕','🌽','🌶️','🫑','🥒','🥬','🥦','🧄','🧅','🥜','🫘','🌰','🍞','🥐','🥖','🫓','🥨','🥯','🥞','🧇']},
 {n:'🍕',e:['🍕','🍔','🍟','🌭','🥪','🌮','🌯','🫔','🥙','🧆','🥚','🍳','🥘','🍲','🥣','🥗','🍿','🧈','🧂','🥫','🍱','🍘','🍙','🍚','🍛','🍜','🍝','🍠','🍢','🍣','🍤','🍥','🥮','🍡','🥟','🥠','🥡','🦀','🦞','🦐','🦑','🦪','🍦','🍧','🍨','🍩','🍪','🎂','🍰','🧁','🥧','🍫','🍬','🍭','🍮','🍯','🍼','🥛','☕','🫖','🍵','🍶','🍾','🍷','🍸','🍹','🍺','🍻','🥂','🥃','🥤','🧋','🧃','🧉','🧊','🥢','🍽️','🍴','🥄','🔪','🫗']},
 {n:'🚗',e:['🚗','🚕','🚙','🚌','🚎','🏎️','🚓','🚑','🚒','🚐','🛻','🚚','🚛','🚜','🏍️','🛵','🚲','🛴','🛹','🛼','🚨','🚔','🚍','🚘','🚖','🚡','🚠','🚟','🚃','🚋','🚞','🚝','🚄','🚅','🚈','🚂','🚆','🚇','🚊','🚉','✈️','🛫','🛬','🛩️','💺','🛰️','🚀','🛸','🚁','🛶','⛵','🚤','🛥️','🛳️','⛴️','🚢','⛽','🚧','🚦','🚥','🗺️','🗿','🗽','🗼','🏰','🏯','🏟️','🎡','🎢','🎠','⛲','⛱️','🏖️','🏝️','🏜️','🌋','⛰️','🏔️','🗻','🏕️','🏠','🏡','🏘️','🏢','🏬','🏣','🏤','🏥','🏦','🏨','🏪','🏫','🏩','💒','🏛️','⛪','🕌','🕍','⛩️']},
@@ -177,17 +226,108 @@ var EC=[
 {n:'🏳️',e:['🏳️','🏴','🏁','🚩','🏳️‍🌈','🏳️‍⚧️','🏴‍☠️','🇨🇳','🇺🇸','🇯🇵','🇰🇷','🇬🇧','🇫🇷','🇩🇪','🇮🇹','🇪🇸','🇷🇺','🇧🇷','🇮🇳','🇨🇦','🇦🇺','🇲🇽','🇰🇵','🇿🇦','🇹🇷','🇸🇦','🇦🇪','🇹🇭','🇻🇳','🇮🇩','🇲🇾','🇸🇬','🇵🇭','🇳🇿','🇸🇪','🇳🇴','🇩🇰','🇫🇮','🇵🇱','🇳🇱','🇧🇪','🇨🇭','🇦🇹','🇵🇹','🇬🇷','🇮🇪','🇨🇿','🇭🇺','🇷🇴','🇺🇦','🇪🇬','🇳🇬','🇰🇪','🇪🇹','🇦🇷','🇨🇱','🇨🇴','🇵🇪','🇻🇪','🇪🇨','🇵🇰','🇧🇩','🇱🇰','🇲🇲','🇰🇭','🇱🇦','🇲🇳','🇳🇵']}
 ];
 
-var S={user:null,client:null,hb:null,omap:{},pimg:null,eopen:false,hist:[],stor:false,visible:true,nperm:'default',ucount:0,audioCtx:null,soundOn:true,toastTimer:null};
+// ========== STATE ==========
+var S={
+  user:null,client:null,hb:null,omap:{},pimg:null,eopen:false,
+  hist:[],stor:false,visible:true,nperm:'default',
+  ucount:0,audioCtx:null,soundOn:true,toastTimer:null,
+  offlineBuffer:[],reconnecting:false,lastTs:0
+};
 var D={};
 
 function $(id){return document.getElementById(id)}
+
+// ========== INIT ==========
 function init(){
-D.login=$('loginView');D.chat=$('chatView');D.iUser=$('iUser');D.iPass=$('iPass');D.btnLogin=$('btnLogin');D.loginErr=$('loginErr');D.btnLogout=$('btnLogout');D.hdrUser=$('hdrUser');D.hdrOnline=$('hdrOnline');D.msgs=$('msgsBox');D.sync=$('syncBar');D.ep=$('emojiPanel');D.etabs=$('emojiTabs');D.egrid=$('emojiGrid');D.btnEmoji=$('btnEmoji');D.btnEmojiClose=$('btnEmojiClose');D.btnPic=$('btnPic');D.btnCam=$('btnCam');D.iMsg=$('iMsg');D.btnSend=$('btnSend');D.fInput=$('fInput');D.cInput=$('cInput');D.ip=$('imgPreview');D.prevImg=$('prevImg');D.prevInfo=$('prevInfo');D.btnRmImg=$('btnRmImg');D.iv=$('imgViewer');D.viewImg=$('viewImg');D.bot=$('botBar');D.toast=$('toast');D.toastTitle=$('toastTitle');D.toastText=$('toastText');D.btnNotif=$('btnNotif');D.notifBadge=$('notifBadge');
-checkStor();bind();initVis();
+D.login=$('loginView');D.chat=$('chatView');D.iUser=$('iUser');D.iPass=$('iPass');
+D.btnLogin=$('btnLogin');D.loginErr=$('loginErr');D.btnLogout=$('btnLogout');
+D.hdrUser=$('hdrUser');D.hdrOnline=$('hdrOnline');D.msgs=$('msgsBox');D.sync=$('syncBar');
+D.ep=$('emojiPanel');D.etabs=$('emojiTabs');D.egrid=$('emojiGrid');
+D.btnEmoji=$('btnEmoji');D.btnEmojiClose=$('btnEmojiClose');
+D.btnPic=$('btnPic');D.btnCam=$('btnCam');D.iMsg=$('iMsg');D.btnSend=$('btnSend');
+D.fInput=$('fInput');D.cInput=$('cInput');D.ip=$('imgPreview');
+D.prevImg=$('prevImg');D.prevInfo=$('prevInfo');D.btnRmImg=$('btnRmImg');
+D.iv=$('imgViewer');D.viewImg=$('viewImg');D.bot=$('botBar');
+D.toast=$('toast');D.toastTitle=$('toastTitle');D.toastText=$('toastText');
+D.btnNotif=$('btnNotif');D.notifBadge=$('notifBadge');
+D.offlineSummary=$('offlineSummary');D.obCount=$('obCount');D.obDetail=$('obDetail');D.obBtn=$('obBtn');
+checkStor();bind();initVis();loadSoundPref();
 }
 
 function checkStor(){try{localStorage.setItem('_','1');localStorage.removeItem('_');S.stor=true}catch(e){S.stor=false}}
 
+function loadSoundPref(){
+try{var p=localStorage.getItem('ltrj_sound');if(p!==null)S.soundOn=p==='1'}catch(e){}
+updNotifBtn();
+}
+function saveSoundPref(){
+try{localStorage.setItem('ltrj_sound',S.soundOn?'1':'0')}catch(e){}
+updNotifBtn();
+}
+function updNotifBtn(){
+if(S.soundOn){
+D.btnNotif.innerHTML='🔔<span class="notif-badge" id="notifBadge" style="display:none">0</span>';
+D.notifBadge=$('notifBadge');
+D.btnNotif.classList.remove('muted');
+}else{
+D.btnNotif.innerHTML='🔕';
+D.btnNotif.classList.add('muted');
+}
+}
+
+// ========== DYNAMIC FAVICON ==========
+function setFavicon(count){
+var canvas=document.createElement('canvas');
+canvas.width=32;canvas.height=32;
+var ctx=canvas.getContext('2d');
+// Draw base emoji
+ctx.font='28px serif';
+ctx.fillText('🔒',2,26);
+// Draw badge if count > 0
+if(count>0){
+ctx.fillStyle='#e94560';
+ctx.beginPath();
+var bx=24,by=8,br=count>9?10:8;
+ctx.arc(bx,by,br,0,Math.PI*2);
+ctx.fill();
+ctx.fillStyle='#fff';
+ctx.font='bold '+(count>9?'9':'11')+'px sans-serif';
+ctx.textAlign='center';
+ctx.textBaseline='middle';
+ctx.fillText(count>99?'99+':count,bx,by+1);
+}
+var link=document.getElementById('favicon');
+if(!link){link=document.createElement('link');link.rel='icon';link.id='favicon';document.head.appendChild(link)}
+link.href=canvas.toDataURL('image/png');
+}
+
+// ========== UNREAD COUNT PERSISTENCE ==========
+function loadUnread(){
+try{
+var d=localStorage.getItem('ltrj_unread_'+S.user.name);
+if(d){
+var obj=JSON.parse(d);
+S.ucount=obj.count||0;
+S.offlineBuffer=obj.messages||[];
+}
+}catch(e){}
+}
+function saveUnread(){
+try{
+localStorage.setItem('ltrj_unread_'+S.user.name,JSON.stringify({
+count:S.ucount,
+messages:S.offlineBuffer.slice(-20),
+ts:Date.now()
+}));
+}catch(e){}
+}
+function clearUnread(){
+S.ucount=0;
+S.offlineBuffer=[];
+try{localStorage.removeItem('ltrj_unread_'+S.user.name)}catch(e){}
+}
+
+// ========== AUDIO ==========
 function unlockAudio(){
 try{
 var C=window.AudioContext||window.webkitAudioContext;
@@ -196,84 +336,127 @@ if(S.audioCtx&&S.audioCtx.state==='suspended')S.audioCtx.resume();
 }catch(e){}
 }
 
-function playTone(){
-if(!S.audioCtx)return;
+function playNotifSound(){
 try{
-var o=S.audioCtx.createOscillator(),g=S.audioCtx.createGain();
-o.connect(g);g.connect(S.audioCtx.destination);
-o.frequency.value=880;o.type='sine';
-g.gain.setValueAtTime(0.3,S.audioCtx.currentTime);
-g.gain.exponentialRampToValueAtTime(0.01,S.audioCtx.currentTime+0.3);
-o.start(S.audioCtx.currentTime);o.stop(S.audioCtx.currentTime+0.3);
+if(!S.audioCtx){var C=window.AudioContext||window.webkitAudioContext;if(C)S.audioCtx=new C()}
+if(!S.audioCtx)return;
+if(S.audioCtx.state==='suspended')S.audioCtx.resume();
+// Double beep pattern
+var now=S.audioCtx.currentTime;
+var o1=S.audioCtx.createOscillator(),g1=S.audioCtx.createGain();
+o1.connect(g1);g1.connect(S.audioCtx.destination);
+o1.frequency.value=880;o1.type='sine';
+g1.gain.setValueAtTime(0.5,now);
+g1.gain.exponentialRampToValueAtTime(0.01,now+0.15);
+o1.start(now);o1.stop(now+0.15);
+var o2=S.audioCtx.createOscillator(),g2=S.audioCtx.createGain();
+o2.connect(g2);g2.connect(S.audioCtx.destination);
+o2.frequency.value=1100;o2.type='sine';
+g2.gain.setValueAtTime(0.4,now+0.2);
+g2.gain.exponentialRampToValueAtTime(0.01,now+0.4);
+o2.start(now+0.2);o2.stop(now+0.4);
 }catch(e){}
 }
 
-function showToggleTip(msg){
-var tip=document.createElement('div');
-tip.textContent=msg;
-tip.style.cssText='position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(26,26,46,0.95);color:#eee;padding:12px 24px;border-radius:10px;font-size:14px;z-index:99999;border:1px solid #e94560;pointer-events:none;transition:opacity 0.3s;';
-document.body.appendChild(tip);
-setTimeout(function(){tip.style.opacity='0';setTimeout(function(){if(tip.parentNode)tip.parentNode.removeChild(tip)},300)},1200);
-}
-
-function showNotif(t,b){
+// ========== NOTIFICATIONS ==========
+function showNotif(sender,body){
 try{
-// Toast in-app notification
+// 1. Toast popup
 if(D.toast&&D.toastTitle&&D.toastText){
-D.toastTitle.textContent=t;
-D.toastText.textContent=b;
+D.toastTitle.textContent=sender;
+D.toastText.textContent=body;
 D.toast.classList.add('show');
 clearTimeout(S.toastTimer);
 S.toastTimer=setTimeout(function(){if(D.toast)D.toast.classList.remove('show')},5000);
 }
-// Vibration on mobile
-if(navigator.vibrate)try{navigator.vibrate([100,50,100])}catch(e){}
-// Sound notification
-if(S.soundOn){
+// 2. Vibration
+if(S.soundOn&&navigator.vibrate)try{navigator.vibrate([100,50,100,50,100])}catch(e){}
+// 3. Sound
+if(S.soundOn)playNotifSound();
+// 4. Desktop notification (when page hidden)
+if(document.hidden&&'Notification' in window&&S.nperm==='granted'){
 try{
-if(!S.audioCtx){var C=window.AudioContext||window.webkitAudioContext;if(C)S.audioCtx=new C()}
-if(S.audioCtx&&S.audioCtx.state==='suspended')S.audioCtx.resume();
-if(S.audioCtx){
-var o=S.audioCtx.createOscillator(),g=S.audioCtx.createGain();
-o.connect(g);g.connect(S.audioCtx.destination);
-o.frequency.value=880;o.type='sine';
-g.gain.setValueAtTime(0.5,S.audioCtx.currentTime);
-g.gain.exponentialRampToValueAtTime(0.01,S.audioCtx.currentTime+0.5);
-o.start(S.audioCtx.currentTime);o.stop(S.audioCtx.currentTime+0.5);
-// Second beep for more noticeable alert
-setTimeout(function(){
-try{
-var o2=S.audioCtx.createOscillator(),g2=S.audioCtx.createGain();
-o2.connect(g2);g2.connect(S.audioCtx.destination);
-o2.frequency.value=1100;o2.type='sine';
-g2.gain.setValueAtTime(0.4,S.audioCtx.currentTime);
-g2.gain.exponentialRampToValueAtTime(0.01,S.audioCtx.currentTime+0.3);
-o2.start(S.audioCtx.currentTime);o2.stop(S.audioCtx.currentTime+0.3);
-}catch(e){}
-},200);
-}
+var n=new Notification(sender,{
+body:body,
+tag:'ltrj-chat',
+icon:'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=\'.9em\' font-size=\'90\'>💬</text></svg>',
+silent:false
+});
+n.onclick=function(){window.focus();n.close();clearUnread();updBadge()};
+setTimeout(function(){try{n.close()}catch(e){}},8000);
 }catch(e){}
 }
-// Desktop notification (when page not visible)
-if(document.hidden){
-if('Notification' in window&&S.nperm==='granted'){
-try{var n=new Notification(t,{body:b,tag:'ltrj',silent:false});n.onclick=function(){window.focus();n.close();S.ucount=0;updBadge()};setTimeout(function(){n.close()},6000)}catch(e){}
-}
-}
-// Update badge
+// 5. Update count & badge
 S.ucount++;
 updBadge();
+setFavicon(S.ucount);
+// 6. Save to offline buffer
+S.offlineBuffer.push({sender:sender,body:body,ts:Date.now()});
+if(S.offlineBuffer.length>20)S.offlineBuffer=S.offlineBuffer.slice(-20);
+saveUnread();
 }catch(e){}
 }
 
 function updBadge(){
+// Title
 document.title=S.ucount>0?'('+S.ucount+') 隐私聊天':'隐私聊天';
-if(S.ucount>0){D.notifBadge.textContent=S.ucount;D.notifBadge.style.display='flex'}
+// Badge on button
+if(D.notifBadge){
+if(S.ucount>0){D.notifBadge.textContent=S.ucount>99?'99+':S.ucount;D.notifBadge.style.display='flex'}
 else{D.notifBadge.style.display='none'}
 }
+}
 
-function initVis(){document.addEventListener('visibilitychange',function(){S.visible=!document.hidden;if(!document.hidden){S.ucount=0;updBadge()}})}
+// ========== OFFLINE SUMMARY ==========
+function showOfflineSummary(){
+if(S.ucount<=0)return;
+D.obCount.textContent=S.ucount;
+var html='';
+var shown=S.offlineBuffer.slice(-10);
+shown.forEach(function(m){
+html+='<div class="od-item"><span class="od-name">'+esc(m.sender)+'</span><span class="od-text">'+esc(m.body)+'</span></div>';
+});
+D.obDetail.innerHTML=html;
+D.offlineSummary.classList.add('show');
+}
 
+function hideOfflineSummary(){
+D.offlineSummary.classList.remove('show');
+clearUnread();
+updBadge();
+setFavicon(0);
+scrollBot();
+}
+
+// ========== VISIBILITY ==========
+function initVis(){
+document.addEventListener('visibilitychange',function(){
+S.visible=!document.hidden;
+if(!document.hidden){
+// Page became visible - clear badge but keep offline count for summary
+setFavicon(0);
+}
+});
+// Save state before unload
+window.addEventListener('beforeunload',function(){
+saveUnread();
+});
+// Also save on pagehide (iOS)
+window.addEventListener('pagehide',function(){
+saveUnread();
+});
+}
+
+// ========== TOGGLE TIP ==========
+function showToggleTip(msg){
+var tip=document.createElement('div');
+tip.className='toggle-tip';
+tip.textContent=msg;
+document.body.appendChild(tip);
+setTimeout(function(){tip.style.opacity='0';setTimeout(function(){if(tip.parentNode)tip.parentNode.removeChild(tip)},300)},1200);
+}
+
+// ========== iOS FIX ==========
 function fixIOS(){
 var ua=navigator.userAgent;
 if(/iPad|iPhone|iPod/.test(ua)&&!window.MSStream){
@@ -288,6 +471,7 @@ fix();
 }
 }
 
+// ========== EVENT BINDING ==========
 function bind(){
 D.btnLogin.addEventListener('click',doLogin);
 D.iPass.addEventListener('keydown',function(e){if(e.key==='Enter')doLogin()});
@@ -307,28 +491,28 @@ D.fInput.addEventListener('change',function(e){if(e.target.files&&e.target.files
 D.cInput.addEventListener('change',function(e){if(e.target.files&&e.target.files[0])procImg(e.target.files[0]);e.target.value=''});
 D.btnRmImg.addEventListener('click',rmImg);
 D.iv.addEventListener('click',function(){D.iv.classList.remove('open')});
-// Toast notification click - dismiss and scroll to latest
+// Toast click - dismiss & scroll
 D.toast.addEventListener('click',function(){
 D.toast.classList.remove('show');clearTimeout(S.toastTimer);
-S.ucount=0;updBadge();scrollBot();
+clearUnread();updBadge();setFavicon(0);scrollBot();
 });
-// Notification toggle button
+// Notification toggle
 D.btnNotif.addEventListener('click',function(){
 S.soundOn=!S.soundOn;
+saveSoundPref();
 if(S.soundOn){
-D.btnNotif.innerHTML='🔔<span class="notif-badge" id="notifBadge" style="display:none">0</span>';
-D.notifBadge=D.btnNotif.querySelector('.notif-badge');
-D.btnNotif.classList.remove('muted');
-showToggleTip('消息提醒已开启');
+showToggleTip('🔔 消息提醒已开启');
 unlockAudio();
 }else{
-D.btnNotif.innerHTML='🔕';
-D.btnNotif.classList.add('muted');
-showToggleTip('消息提醒已关闭');
+showToggleTip('🔕 消息提醒已关闭');
 }
 });
+// Offline summary dismiss
+D.obBtn.addEventListener('click',hideOfflineSummary);
+D.offlineSummary.addEventListener('click',function(e){if(e.target===D.offlineSummary)hideOfflineSummary()});
 }
 
+// ========== LOGIN / LOGOUT ==========
 function doLogin(){
 var u=D.iUser.value.trim().toLowerCase(),p=D.iPass.value;
 if(!u||!p){D.loginErr.textContent='请输入用户名和密码';return}
@@ -337,20 +521,28 @@ if(CFG.users[u].pw!==p){D.loginErr.textContent='密码错误';return}
 S.user={name:u,display:CFG.users[u].name};
 D.loginErr.textContent='';
 unlockAudio();
+// Request notification permission
 if('Notification' in window){
 if(Notification.permission==='granted')S.nperm='granted';
 else if(Notification.permission!=='denied')Notification.requestPermission().then(function(p){S.nperm=p});
 }
+// Load unread count from previous session
+loadUnread();
 showChat();
 }
 
 function doLogout(){
-if(S.client){pubPres('offline');setTimeout(function(){S.client.end();S.client=null},500)}
-clearInterval(S.hb);S.user=null;S.omap={};
+if(S.client){pubPres('offline');setTimeout(function(){try{S.client.end()}catch(e){};S.client=null},500)}
+clearInterval(S.hb);
+clearUnread();
+S.user=null;S.omap={};
 D.msgs.innerHTML='';D.chat.style.display='none';D.login.style.display='flex';
 D.iUser.value='';D.iPass.value='';
+setFavicon(0);
+document.title='隐私聊天';
 }
 
+// ========== CHAT ==========
 function showChat(){
 D.login.style.display='none';D.chat.style.display='flex';
 D.hdrUser.textContent=S.user.display;
@@ -373,6 +565,7 @@ setTimeout(scrollBot,50);
 
 function saveH(m){S.hist.push(m);if(S.hist.length>500)S.hist=S.hist.slice(-500);if(S.stor){try{localStorage.setItem('ltrj_h_'+S.user.name,JSON.stringify(S.hist))}catch(e){}}}
 
+// ========== EMOJI ==========
 function initEP(){
 D.etabs.innerHTML='';
 EC.forEach(function(c,i){
@@ -392,6 +585,7 @@ D.egrid.appendChild(s);
 });
 }
 
+// ========== SEND ==========
 function doSend(){
 var t=D.iMsg.value.trim();
 if(S.pimg){sendImg();if(t)sendTxt(t);return}
@@ -432,6 +626,7 @@ D.ip.classList.add('open');
 
 function rmImg(){S.pimg=null;D.ip.classList.remove('open');D.prevImg.src=''}
 
+// ========== MESSAGE DISPLAY ==========
 function addMsg(t,sn,sent,ts){
 var d=document.createElement('div');d.className='m '+(sent?'s':'r');
 var h='';if(!sent)h+='<div class="sn">'+esc(sn)+'</div>';
@@ -459,21 +654,35 @@ D.msgs.appendChild(d);scrollBot();
 function addSys(t){var d=document.createElement('div');d.className='m sys';d.textContent=t;D.msgs.appendChild(d);scrollBot()}
 function scrollBot(){requestAnimationFrame(function(){D.msgs.scrollTop=D.msgs.scrollHeight})}
 
+// ========== MQTT ==========
 function connect(){
 setS('正在连接...','');var idx=0;
+S.reconnecting=true;
 function tryC(i){
-if(i>=CFG.brokers.length){setS('连接失败','err');return}
+if(i>=CFG.brokers.length){setS('连接失败','err');S.reconnecting=false;return}
 try{
-S.client=mqtt.connect(CFG.brokers[i],{clientId:'ltrj-'+S.user.name,clean:false,connectTimeout:8000,reconnectPeriod:3000,keepalive:15});
+S.client=mqtt.connect(CFG.brokers[i],{
+clientId:'ltrj-'+S.user.name,
+clean:false,
+connectTimeout:8000,
+reconnectPeriod:3000,
+keepalive:15
+});
 S.client.on('connect',function(){
 setS('已连接','ok');
+S.reconnecting=false;
 S.client.subscribe(CFG.topic+'/messages',{qos:1});
 S.client.subscribe(CFG.topic+'/presence',{qos:1});
-pubPres('online');addSys(S.user.display+' 加入聊天室');
-// Test notification to confirm everything works
-setTimeout(function(){showToggleTip('✅ 消息提醒已就绪')},500);
+pubPres('online');
+addSys(S.user.display+' 加入聊天室');
 S.hb=setInterval(function(){pubPres('online')},12000);
 S.client.publish(CFG.topic+'/presence',JSON.stringify({type:'presence_request',username:S.user.name,ts:Date.now()}));
+// Show offline summary if there are unread messages from previous session
+if(S.ucount>0){
+setTimeout(function(){showOfflineSummary()},800);
+}else{
+showToggleTip('✅ 消息提醒已就绪');
+}
 });
 S.client.on('message',function(tp,p){
 try{var d=JSON.parse(p.toString());if(!d)return;
@@ -491,10 +700,23 @@ tryC(idx);
 
 function onMsg(d){
 if(d.username===S.user.name)return;
+// Skip if this is an old message we've already seen
+if(d.ts&&d.ts<=S.lastTs)return;
+S.lastTs=d.ts;
 var sn=d.displayName||d.username;
-if(d.type==='chat'){saveH({type:'chat',text:d.text,sender:sn,sent:false,ts:d.ts});addMsg(d.text,sn,false,d.ts);showNotif(sn,d.text)}
-else if(d.type==='emoji'){saveH({type:'emoji',emoji:d.emoji,sender:sn,sent:false,ts:d.ts,sticker:d.sticker});addEmo(d.emoji,sn,false,d.ts,d.sticker);showNotif(sn,'[表情]')}
-else if(d.type==='image'){saveH({type:'image',data:d.imageData,sender:sn,sent:false,ts:d.ts});addImg(d.imageData,sn,false,d.ts);showNotif(sn,'[图片]')}
+if(d.type==='chat'){
+saveH({type:'chat',text:d.text,sender:sn,sent:false,ts:d.ts});
+addMsg(d.text,sn,false,d.ts);
+showNotif(sn,d.text);
+}else if(d.type==='emoji'){
+saveH({type:'emoji',emoji:d.emoji,sender:sn,sent:false,ts:d.ts,sticker:d.sticker});
+addEmo(d.emoji,sn,false,d.ts,d.sticker);
+showNotif(sn,'[表情]');
+}else if(d.type==='image'){
+saveH({type:'image',data:d.imageData,sender:sn,sent:false,ts:d.ts});
+addImg(d.imageData,sn,false,d.ts);
+showNotif(sn,'[图片]');
+}
 }
 
 function pubPres(s){if(!S.client||!S.client.connected)return;S.client.publish(CFG.topic+'/presence',JSON.stringify({type:'presence',username:S.user.name,displayName:S.user.display,status:s,ts:Date.now()}))}
@@ -516,26 +738,14 @@ D.hdrOnline.innerHTML=a.map(function(n){return '<span class="ous"><span class="o
 }
 setInterval(function(){if(S.user)renderO()},10000);
 
+// ========== UTILS ==========
 function setS(t,c){D.sync.textContent=t;D.sync.className='ss'+(c?' '+c:'')}
 function esc(s){var d=document.createElement('div');d.appendChild(document.createTextNode(s));return d.innerHTML}
 function fmt(ts){var d=new Date(ts);return ('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2)}
 
+// ========== START ==========
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
 })();
 </script>
 </body>
 </html>
-
-/* Toast Notification */
-.toast{position:fixed;top:-140px;left:50%;transform:translateX(-50%);width:calc(100% - 24px);max-width:400px;background:linear-gradient(135deg,#1a1a2e,#16213e);border:2px solid #e94560;border-radius:14px;padding:12px 16px;z-index:99998;display:flex;align-items:center;gap:10px;transition:top .4s cubic-bezier(0.34,1.56,0.64,1);cursor:pointer;box-shadow:0 6px 24px rgba(233,69,96,.4),0 0 0 1px rgba(233,69,96,.2)}
-.toast.show{top:12px}
-.toast-icon{width:40px;height:40px;background:#e94560;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;animation:pulse 1s ease infinite}
-@keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.1)}}
-.toast-body{flex:1;min-width:0;overflow:hidden}
-.toast-title{font-size:13px;font-weight:700;color:#e94560;margin-bottom:2px}
-.toast-text{font-size:14px;color:#eee;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.toast-badge{position:absolute;top:-6px;right:-6px;background:#e94560;color:#fff;font-size:10px;font-weight:700;min-width:18px;height:18px;border-radius:9px;display:flex;align-items:center;justify-content:center;padding:0 4px}
-.notif-btn{background:none;border:1px solid #2a2a4a;color:#eee;padding:4px 8px;border-radius:8px;font-size:16px;cursor:pointer;position:relative;display:flex;align-items:center;justify-content:center}
-.notif-btn.muted{opacity:.5}
-.notif-badge{position:absolute;top:-6px;right:-6px;background:#e94560;color:#fff;font-size:9px;font-weight:700;min-width:16px;height:16px;border-radius:8px;display:flex;align-items:center;justify-content:center;padding:0 3px}
-.notif-btn:active{background:rgba(255,255,255,.08)}
