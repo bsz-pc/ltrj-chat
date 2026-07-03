@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="theme-color" content="#0f0f0f">
+<title>隐私聊天</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%;width:100%;overflow:hidden;overscroll-behavior:none;-webkit-touch-callout:none}
+body{font-family:-apple-system,BlinkMacSystemFont,'Helvetica Neue','PingFang SC',sans-serif;background:#0f0f0f;color:#eee;-webkit-text-size-adjust:100%;-webkit-tap-highlight-color:transparent}
+input,button{font-family:inherit;font-size:16px;-webkit-appearance:none;appearance:none;border:none;outline:none;touch-action:manipulation}
+:root{--sb:env(safe-area-inset-bottom,0px)}
+
+/* Login */
+.login{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;padding:20px}
+.login-box{background:#1a1a2e;border:1px solid #2a2a4a;border-radius:16px;padding:36px 28px;width:100%;max-width:360px}
+.login-box h1{text-align:center;font-size:22px;margin-bottom:6px}
+.login-box .sub{text-align:center;color:#999;font-size:13px;margin-bottom:24px}
+.fg{margin-bottom:14px}
+.fg label{display:block;font-size:12px;color:#999;margin-bottom:4px}
+.fg input{width:100%;padding:11px 14px;border:1px solid #2a2a4a;border-radius:10px;background:#0f0f0f;color:#eee;font-size:16px}
+.fg input:focus{border-color:#e94560}
+.lbtn{width:100%;padding:13px;border-radius:10px;background:#e94560;color:#fff;font-size:15px;font-weight:600;cursor:pointer;margin-top:8px}
+.lbtn:active{opacity:.8}
+.lerr{color:#e94560;text-align:center;margin-top:10px;font-size:12px;min-height:18px}
+
+/* Chat */
+.chat{display:none;flex-direction:column;height:100%;width:100%;overflow:hidden}
+.hdr{display:flex;align-items:center;justify-content:space-between;padding:8px 14px;background:#1a1a2e;border-bottom:1px solid #2a2a4a;flex-shrink:0;min-height:44px}
+.hdr-l{display:flex;align-items:center;gap:8px}
+.hdr-logo{width:30px;height:30px;background:#e94560;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:15px}
+.hdr-t{font-size:14px;font-weight:600}
+.hdr-r{display:flex;align-items:center;gap:6px}
+.ubadge{background:#0f3460;padding:3px 10px;border-radius:14px;font-size:11px}
+.lout{background:none;border:1px solid #2a2a4a;color:#999;padding:4px 10px;border-radius:6px;font-size:11px;cursor:pointer}
+.obar{display:flex;align-items:center;gap:4px;padding:4px 14px;background:#16213e;border-bottom:1px solid #2a2a4a;font-size:10px;color:#999;flex-shrink:0;min-height:24px;flex-wrap:wrap}
+.odot{width:5px;height:5px;background:#4ade80;border-radius:50%;display:inline-block;flex-shrink:0}
+.ous{display:inline-flex;align-items:center;gap:3px;margin-right:6px}
+
+/* Messages */
+.msgs{flex:1;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;padding:10px 14px;display:flex;flex-direction:column;gap:3px;min-height:0}
+.msgs::-webkit-scrollbar{width:3px}
+.msgs::-webkit-scrollbar-thumb{background:#2a2a4a;border-radius:2px}
+.m{max-width:80%;padding:7px 11px;border-radius:12px;font-size:14px;line-height:1.45;word-break:break-word;flex-shrink:0}
+.m.s{align-self:flex-end;background:#0f3460;border-bottom-right-radius:3px}
+.m.r{align-self:flex-start;background:#1a1a2e;border:1px solid #2a2a4a;border-bottom-left-radius:3px}
+.m .sn{font-size:10px;color:#e94560;margin-bottom:2px;font-weight:600}
+.m .tm{font-size:9px;color:#666;margin-top:2px;text-align:right}
+.m.sys{align-self:center;background:none;color:#666;font-size:11px;max-width:100%;text-align:center;padding:3px 6px}
+.m img.mi{max-width:100%;border-radius:6px;margin-bottom:3px;cursor:pointer;display:block}
+.m .eo{font-size:48px;line-height:1.2;text-align:center}
+.ss{text-align:center;font-size:9px;padding:2px;flex-shrink:0;color:#666}
+.ss.ok{color:#4ade80}
+.ss.err{color:#e94560}
+
+/* Bottom */
+.bot{flex-shrink:0;background:#1a1a2e;border-top:1px solid #2a2a4a;padding-bottom:var(--sb)}
+.ir{display:flex;align-items:center;gap:4px;padding:6px 10px}
+.ir input{flex:1;min-width:0;padding:9px 12px;border:1px solid #2a2a4a;border-radius:18px;background:#0f0f0f;color:#eee;font-size:16px;height:38px}
+.tb{width:38px;height:38px;border:none;border-radius:50%;background:none;color:#999;font-size:19px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.tb:active{background:rgba(255,255,255,.08)}
+.sb{width:38px;height:38px;border:none;border-radius:50%;background:#e94560;color:#fff;font-size:17px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.sb:active{opacity:.8}
+
+/* Emoji Panel */
+.ep{display:none;border-top:1px solid #2a2a4a;background:#16213e}
+.ep.open{display:block}
+.etabs{display:flex;border-bottom:1px solid #2a2a4a;overflow-x:auto;-webkit-overflow-scrolling:touch;padding:3px 6px;gap:1px}
+.etabs::-webkit-scrollbar{display:none}
+.etab{padding:5px 8px;border:none;border-radius:5px;background:none;color:#999;font-size:16px;cursor:pointer;white-space:nowrap;flex-shrink:0;min-width:34px;text-align:center}
+.etab.on{background:#0f3460}
+.escroll{height:170px;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:6px}
+.egrid{display:flex;flex-wrap:wrap;gap:1px}
+.ei{width:38px;height:38px;display:flex;align-items:center;justify-content:center;font-size:26px;cursor:pointer;border-radius:5px;flex-shrink:0}
+.ei:active{background:#0f3460}
+.ebar{display:flex;justify-content:center;padding:3px;border-top:1px solid #2a2a4a}
+.ebar button{background:none;border:none;color:#666;font-size:11px;cursor:pointer;padding:5px 14px}
+
+/* Image Preview */
+.ip{display:none;padding:6px 10px;background:#16213e;border-top:1px solid #2a2a4a;align-items:center;gap:8px}
+.ip.open{display:flex}
+.ip img{width:44px;height:44px;object-fit:cover;border-radius:6px;border:1px solid #2a2a4a}
+.ip .pi{flex:1;font-size:10px;color:#999}
+.ip .rb{background:none;border:none;color:#e94560;font-size:18px;cursor:pointer;padding:4px 6px}
+
+/* Image Viewer */
+.iv{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.95);z-index:9999;align-items:center;justify-content:center}
+.iv.open{display:flex}
+.iv img{max-width:95%;max-height:95%;object-fit:contain}
+
+@media(max-width:600px){.m{max-width:85%}.escroll{height:150px}}
+</style>
+</head>
+<body>
+
+<div class="login" id="loginView">
+<div class="login-box">
+<h1>🔒 隐私聊天</h1>
+<p class="sub">实时加密通讯</p>
+<div class="fg"><label>用户名</label><input type="text" id="iUser" placeholder="输入用户名" autocomplete="off"></div>
+<div class="fg"><label>密码</label><input type="password" id="iPass" placeholder="输入密码"></div>
+<button class="lbtn" id="btnLogin">登 录</button>
+<div class="lerr" id="loginErr"></div>
+</div>
+</div>
+
+<div class="chat" id="chatView">
+<div class="hdr">
+<div class="hdr-l"><div class="hdr-logo">🔒</div><div class="hdr-t">隐私聊天室</div></div>
+<div class="hdr-r"><span class="ubadge" id="hdrUser"></span><button class="lout" id="btnLogout">退出</button></div>
+</div>
+<div class="obar"><span class="odot"></span><span>在线：</span><span id="hdrOnline">-</span></div>
+<div class="msgs" id="msgsBox"></div>
+<div class="ss connecting" id="syncBar">正在连接...</div>
+<div class="bot" id="botBar">
+<div class="ep" id="emojiPanel">
+<div class="etabs" id="emojiTabs"></div>
+<div class="escroll"><div class="egrid" id="emojiGrid"></div></div>
+<div class="ebar"><button id="btnEmojiClose">▼ 收起</button></div>
+</div>
+<div class="ip" id="imgPreview">
+<img id="prevImg" src="" alt="">
+<div class="pi" id="prevInfo"></div>
+<button class="rb" id="btnRmImg">×</button>
+</div>
+<div class="ir">
+<button class="tb" id="btnEmoji">😊</button>
+<input type="text" id="iMsg" placeholder="输入消息..." autocomplete="off">
+<button class="tb" id="btnPic">🖼</button>
+<button class="tb" id="btnCam">📷</button>
+<button class="sb" id="btnSend">➤</button>
+</div>
+</div>
+<input type="file" id="fInput" accept="image/*" style="display:none">
+<input type="file" id="cInput" accept="image/*" capture="environment" style="display:none">
+</div>
+
+<div class="iv" id="imgViewer"><img id="viewImg" src=""></div>
+
+<script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+<script>
+(function(){
+'use strict';
+
+var CFG={
+brokers:['wss://broker.emqx.io:8084/mqtt','wss://mqtt.eclipseprojects.io:443/mqtt'],
+topic:'ltrj-chat-v4-20260703',
+users:{
+'admin':{pw:'admin123',name:'管理员'},
+'0517zmz':{pw:'zmz0517',name:'0517zmz'},
+'0608zbs':{pw:'zbs0608',name:'0608zbs'}
+}
+};
+
+var EC=[
+{n:'😀',e:['😀','😃','😄','😁','😆','😅','🤣','😂','🙂','🙃','😉','😊','😇','🥰','😍','🤩','😘','😗','☺️','😚','😙','🥲','😋','😛','😜','🤪','😝','🤑','🤗','🤭','🫢','🫣','🤫','🤔','🫡','🤐','🤨','😐','😑','😶','😏','😒','🙄','😬','😮‍💨','🤥','😌','😔','😪','🤤','😴','😷','🤒','🤕','🤢','🤮','🤧','🥵','🥶','🥴','😵','😵‍💫','🤯','🤠','🥳','🥸','😎','🤓','🧐','😕','😟','🙁','☹️','😮','😯','😲','😳','🥺','🥹','😦','😧','😨','😰','😥','😢','😭','😱','😖','😣','😞','😓','😩','😫','🥱','😤','😡','😠','🤬','😈','👿','💀','☠️','💩','🤡','👹','👺','👻','👽','👾','🤖']},
+{n:'👋',e:['👋','🤚','🖐️','✋','🖖','🫱','🫲','🫳','🫴','👌','🤌','🤏','✌️','🤞','🫰','🤟','🤘','🤙','👈','👉','👆','🖕','👇','☝️','🫵','👍','👎','✊','👊','🤛','🤜','👏','🙌','🫶','👐','🤲','🤝','🙏','💪','🦾','🦵','🦶','👂','🦻','👃','🧠','🫀','🫁','🦷','🦴','👀','👁️','👅','👄','🫦','💋']},
+{n:'❤️',e:['❤️','🧡','💛','💚','💙','💜','🖤','🤍','🤎','💔','❣️','💕','💞','💓','💗','💖','💘','💝','💟','♥️','💯','💢','💥','💫','💦','💨','💤','🕳️','💬','👁️‍🗨️','🗨️','🗯️','💭','♠️','♣️','♥️','♦️','🃏','🀄','🎴']},
+{n:'🐶',e:['🐶','🐱','🐭','🐹','🐰','🦊','🐻','🐼','🐨','🐯','🦁','🐮','🐷','🐽','🐸','🐵','🙈','🙉','🙊','🐒','🐔','🐧','🐦','🐤','🐣','🐥','🦆','🦅','🦉','🦇','🐺','🐗','🐴','🦄','🐝','🐛','🦋','🐌','🐞','🐜','🦟','🦗','🕷️','🐢','🐍','🦎','🦖','🦕','🐙','🦑','🦐','🦞','🦀','🐡','🐠','🐟','🐬','🐳','🐋','🦈','🐊','🐅','🐆','🦓','🦍','🦧','🐘','🦛','🦏','🐪','🐫','🦒','🦘','🦬','🐃','🐂','🐄','🐎','🐖','🐏','🐑','🦙','🐐','🦌','🐕','🐩','🐈','🐈‍⬛','🐓','🦃','🦚','🦜','🦢','🦩','🕊️','🐇','🦝','🦨','🦡','🐁','🐀','🐿️','🦔','🐾']},
+{n:'🌸',e:['🌸','💮','🪷','🏵️','🌹','🥀','🌺','🌻','🌼','🌷','🌱','🪴','🌲','🌳','🌴','🌵','🌾','🌿','☘️','🍀','🍁','🍂','🍃','🍄','🍇','🍈','🍉','🍊','🍋','🍌','🍍','🥭','🍎','🍏','🍐','🍑','🍒','🍓','🫐','🥝','🍅','🫒','🥥','🥑','🍆','🥔','🥕','🌽','🌶️','🫑','🥒','🥬','🥦','🧄','🧅','🥜','🫘','🌰','🍞','🥐','🥖','🫓','🥨','🥯','🥞','🧇']},
+{n:'🍕',e:['🍕','🍔','🍟','🌭','🥪','🌮','🌯','🫔','🥙','🧆','🥚','🍳','🥘','🍲','🥣','🥗','🍿','🧈','🧂','🥫','🍱','🍘','🍙','🍚','🍛','🍜','🍝','🍠','🍢','🍣','🍤','🍥','🥮','🍡','🥟','🥠','🥡','🦀','🦞','🦐','🦑','🦪','🍦','🍧','🍨','🍩','🍪','🎂','🍰','🧁','🥧','🍫','🍬','🍭','🍮','🍯','🍼','🥛','☕','🫖','🍵','🍶','🍾','🍷','🍸','🍹','🍺','🍻','🥂','🥃','🥤','🧋','🧃','🧉','🧊','🥢','🍽️','🍴','🥄','🔪','🫗']},
+{n:'🚗',e:['🚗','🚕','🚙','🚌','🚎','🏎️','🚓','🚑','🚒','🚐','🛻','🚚','🚛','🚜','🏍️','🛵','🚲','🛴','🛹','🛼','🚨','🚔','🚍','🚘','🚖','🚡','🚠','🚟','🚃','🚋','🚞','🚝','🚄','🚅','🚈','🚂','🚆','🚇','🚊','🚉','✈️','🛫','🛬','🛩️','💺','🛰️','🚀','🛸','🚁','🛶','⛵','🚤','🛥️','🛳️','⛴️','🚢','⛽','🚧','🚦','🚥','🗺️','🗿','🗽','🗼','🏰','🏯','🏟️','🎡','🎢','🎠','⛲','⛱️','🏖️','🏝️','🏜️','🌋','⛰️','🏔️','🗻','🏕️','🏠','🏡','🏘️','🏢','🏬','🏣','🏤','🏥','🏦','🏨','🏪','🏫','🏩','💒','🏛️','⛪','🕌','🕍','⛩️']},
+{n:'⚽',e:['⚽','🏀','🏈','⚾','🥎','🎾','🏐','🏉','🥏','🎱','🪀','🏓','🏸','🏒','🏑','🥍','🏏','🪃','🥅','⛳','🪁','🏹','🎣','🤿','🥊','🥋','🎽','🛹','🛼','🛷','⛸️','🥌','🎿','⛷️','🏂','🪂','🏋️','🤼','🤸','🤺','⛹️','🤾','🏌️','🏇','🧘','🏄','🏊','🤽','🚣','🧗','🚵','🚴','🏆','🥇','🥈','🥉','🏅','🎖️','🎗️','🎫','🎟️','🎪','🤹','🎭','🩰','🎨','🎬','🎤','🎧','🎼','🎹','🥁','🪘','🎷','🎺','🪗','🎸','🪕','🎻']},
+{n:'🎮',e:['🎮','🕹️','🎲','♟️','🎯','🪅','🪆','🎰','🎳','🪩','📱','💻','🖥️','🖨️','⌨️','🖱️','💽','💾','💿','📀','📷','📸','📹','🎥','📽️','📞','☎️','📟','📠','📺','📻','🎙️','🎚️','🎛️','🧭','⏱️','⏲️','⏰','🕰️','⌛','⏳','📡','🔋','🔌','💡','🔦','🕯️','🪔','🧯','🛢️','💸','💵','💴','💶','💷','🪙','💰','💳','💎','⚖️','🪜','🧰','🪛','🔧','🔨','⚒️','🛠️','⛏️','🔩','⚙️','🧱','⛓️','🧲','🔫','💣','🧨','🪓','🔪','🗡️','⚔️','🛡️','🚬','⚰️','🪦','⚱️','🏺','🔮','📿','🧿','🪬','💈','⚗️','🔭','🔬','🕳️','🩹','🩺','🩻','🩼','💊','💉','🩸','🧬','🦠','🧫','🧪','🌡️','🧹','🪠','🧺','🧻','🚽','🚰','🚿','🛁','🛀','🧼','🪥','🪒','🧽','🪣','🧴','🔑','🗝️','🚪','🪑','🛋️','🛏️','🛌','🧸','🖼️','🪞','🪟','🛍️','🛒','🎁','🎈','🎏','🎀','🪄','🎊','🎉','🎎','🏮','🎐','🧧','✉️','📩','📨','📧','💌','📥','📤','📦','🏷️','📪','📫','📬','📭','📮','📯','📜','📃','📄','📑','🧾','📊','📈','📉','📆','📅','📇','🗂️','📁','📂','🗄️']},
+{n:'🔣',e:['☀️','🌤️','⛅','🌥️','☁️','🌦️','🌧️','⛈️','🌩️','🌨️','❄️','☃️','⛄','🌬️','💨','🌪️','🌫️','🌈','🌂','💧','💦','🌊','🔴','🟠','🟡','🟢','🔵','🟣','🟤','⚫','⚪','🟥','🟧','🟨','🟩','🟦','🟪','🟫','⬛','⬜','◼️','◻️','◾','◽','▪️','▫️','🔶','🔷','🔸','🔹','🔺','🔻','💠','🔘','🔳','🔲','🏁','🚩','🎌','🔀','🔁','🔂','▶️','⏩','⏭️','⏯️','◀️','⏪','⏮️','🔼','⏫','🔽','⏬','⏸️','⏹️','⏺️','⏏️','🔃','🔄','🔙','🔚','🔛','🔜','🔝','♈','♉','♊','♋','♌','♍','♎','♏','♐','♑','♒','♓','⛎','🔯','🔱','📛','🔰','⭕','✅','☑️','✔️','❌','❎','➰','➿','〰️','➕','➖','➗','✖️','♾️','💲','💱','™️','©️','®️','🔚','🔙','🔛','🔝','🔜','‼️','⁉️','❓','❔','❕','❗','〰️']},
+{n:'🏳️',e:['🏳️','🏴','🏁','🚩','🏳️‍🌈','🏳️‍⚧️','🏴‍☠️','🇨🇳','🇺🇸','🇯🇵','🇰🇷','🇬🇧','🇫🇷','🇩🇪','🇮🇹','🇪🇸','🇷🇺','🇧🇷','🇮🇳','🇨🇦','🇦🇺','🇲🇽','🇰🇵','🇿🇦','🇹🇷','🇸🇦','🇦🇪','🇹🇭','🇻🇳','🇮🇩','🇲🇾','🇸🇬','🇵🇭','🇳🇿','🇸🇪','🇳🇴','🇩🇰','🇫🇮','🇵🇱','🇳🇱','🇧🇪','🇨🇭','🇦🇹','🇵🇹','🇬🇷','🇮🇪','🇨🇿','🇭🇺','🇷🇴','🇺🇦','🇪🇬','🇳🇬','🇰🇪','🇪🇹','🇦🇷','🇨🇱','🇨🇴','🇵🇪','🇻🇪','🇪🇨','🇵🇰','🇧🇩','🇱🇰','🇲🇲','🇰🇭','🇱🇦','🇲🇳','🇳🇵']}
+];
+
+var S={user:null,client:null,hb:null,omap:{},pimg:null,eopen:false,hist:[],stor:false,visible:true,nperm:'default',ucount:0,audioCtx:null};
+var D={};
+
+function $(id){return document.getElementById(id)}
+function init(){
+D.login=$('loginView');D.chat=$('chatView');D.iUser=$('iUser');D.iPass=$('iPass');D.btnLogin=$('btnLogin');D.loginErr=$('loginErr');D.btnLogout=$('btnLogout');D.hdrUser=$('hdrUser');D.hdrOnline=$('hdrOnline');D.msgs=$('msgsBox');D.sync=$('syncBar');D.ep=$('emojiPanel');D.etabs=$('emojiTabs');D.egrid=$('emojiGrid');D.btnEmoji=$('btnEmoji');D.btnEmojiClose=$('btnEmojiClose');D.btnPic=$('btnPic');D.btnCam=$('btnCam');D.iMsg=$('iMsg');D.btnSend=$('btnSend');D.fInput=$('fInput');D.cInput=$('cInput');D.ip=$('imgPreview');D.prevImg=$('prevImg');D.prevInfo=$('prevInfo');D.btnRmImg=$('btnRmImg');D.iv=$('imgViewer');D.viewImg=$('viewImg');D.bot=$('botBar');
+checkStor();bind();initVis();
+}
+
+function checkStor(){try{localStorage.setItem('_','1');localStorage.removeItem('_');S.stor=true}catch(e){S.stor=false}}
+
+function unlockAudio(){
+try{
+var C=window.AudioContext||window.webkitAudioContext;
+if(C&&!S.audioCtx)S.audioCtx=new C();
+if(S.audioCtx&&S.audioCtx.state==='suspended')S.audioCtx.resume();
+}catch(e){}
+}
+
+function playTone(){
+if(!S.audioCtx)return;
+try{
+var o=S.audioCtx.createOscillator(),g=S.audioCtx.createGain();
+o.connect(g);g.connect(S.audioCtx.destination);
+o.frequency.value=880;o.type='sine';
+g.gain.setValueAtTime(0.3,S.audioCtx.currentTime);
+g.gain.exponentialRampToValueAtTime(0.01,S.audioCtx.currentTime+0.3);
+o.start(S.audioCtx.currentTime);o.stop(S.audioCtx.currentTime+0.3);
+}catch(e){}
+}
+
+function showNotif(t,b){
+if(S.visible)return;
+if('Notification' in window&&S.nperm==='granted'){
+try{var n=new Notification(t,{body:b,tag:'c',silent:true});n.onclick=function(){window.focus();n.close();S.ucount=0;updTitle()};setTimeout(function(){n.close()},5000)}catch(e){}
+}
+playTone();
+}
+
+function updTitle(){document.title=S.ucount>0?'('+S.ucount+') 隐私聊天':'隐私聊天'}
+function initVis(){document.addEventListener('visibilitychange',function(){S.visible=!document.hidden;if(S.visible){S.ucount=0;updTitle()}})}
+
+function fixIOS(){
+var ua=navigator.userAgent;
+if(/iPad|iPhone|iPod/.test(ua)&&!window.MSStream){
+var fix=function(){
+var vh=window.visualViewport?window.visualViewport.height:window.innerHeight;
+D.chat.style.height=vh+'px';
+scrollBot();
+};
+if(window.visualViewport)window.visualViewport.addEventListener('resize',fix);
+window.addEventListener('resize',fix);
+fix();
+}
+}
+
+function bind(){
+D.btnLogin.addEventListener('click',doLogin);
+D.iPass.addEventListener('keydown',function(e){if(e.key==='Enter')doLogin()});
+D.iUser.addEventListener('keydown',function(e){if(e.key==='Enter')D.iPass.focus()});
+D.btnLogout.addEventListener('click',doLogout);
+D.btnEmoji.addEventListener('click',function(){
+S.eopen=!S.eopen;D.ep.classList.toggle('open',S.eopen);
+if(S.eopen){D.iMsg.blur();scrollBot()}else{D.iMsg.focus()}
+});
+D.btnEmojiClose.addEventListener('click',function(){S.eopen=false;D.ep.classList.remove('open');D.iMsg.focus()});
+D.btnPic.addEventListener('click',function(){D.fInput.click()});
+D.btnCam.addEventListener('click',function(){D.cInput.click()});
+D.btnSend.addEventListener('click',doSend);
+D.iMsg.addEventListener('keydown',function(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();doSend()}});
+D.iMsg.addEventListener('focus',function(){if(S.eopen){S.eopen=false;D.ep.classList.remove('open')}});
+D.fInput.addEventListener('change',function(e){if(e.target.files&&e.target.files[0])procImg(e.target.files[0]);e.target.value=''});
+D.cInput.addEventListener('change',function(e){if(e.target.files&&e.target.files[0])procImg(e.target.files[0]);e.target.value=''});
+D.btnRmImg.addEventListener('click',rmImg);
+D.iv.addEventListener('click',function(){D.iv.classList.remove('open')});
+}
+
+function doLogin(){
+var u=D.iUser.value.trim().toLowerCase(),p=D.iPass.value;
+if(!u||!p){D.loginErr.textContent='请输入用户名和密码';return}
+if(!CFG.users[u]){D.loginErr.textContent='用户不存在';return}
+if(CFG.users[u].pw!==p){D.loginErr.textContent='密码错误';return}
+S.user={name:u,display:CFG.users[u].name};
+D.loginErr.textContent='';
+unlockAudio();
+if('Notification' in window){
+if(Notification.permission==='granted')S.nperm='granted';
+else if(Notification.permission!=='denied')Notification.requestPermission().then(function(p){S.nperm=p});
+}
+showChat();
+}
+
+function doLogout(){
+if(S.client){pubPres('offline');setTimeout(function(){S.client.end();S.client=null},500)}
+clearInterval(S.hb);S.user=null;S.omap={};
+D.msgs.innerHTML='';D.chat.style.display='none';D.login.style.display='flex';
+D.iUser.value='';D.iPass.value='';
+}
+
+function showChat(){
+D.login.style.display='none';D.chat.style.display='flex';
+D.hdrUser.textContent=S.user.display;
+fixIOS();loadHist();initEP();connect();
+}
+
+function loadHist(){
+D.msgs.innerHTML='';
+if(S.stor){try{var d=localStorage.getItem('ltrj_h_'+S.user.name);if(d)S.hist=JSON.parse(d)}catch(e){S.hist=[]}}
+if(S.hist.length){
+addSys('--- 历史消息 ('+S.hist.length+'条) ---');
+S.hist.forEach(function(m){
+if(m.type==='chat')addMsg(m.text,m.sender,m.sent,m.ts);
+else if(m.type==='emoji')addEmo(m.emoji,m.sender,m.sent,m.ts,m.sticker);
+else if(m.type==='image')addImg(m.data,m.sender,m.sent,m.ts);
+});
+setTimeout(scrollBot,50);
+}
+}
+
+function saveH(m){S.hist.push(m);if(S.hist.length>500)S.hist=S.hist.slice(-500);if(S.stor){try{localStorage.setItem('ltrj_h_'+S.user.name,JSON.stringify(S.hist))}catch(e){}}}
+
+function initEP(){
+D.etabs.innerHTML='';
+EC.forEach(function(c,i){
+var b=document.createElement('button');b.className='etab'+(i===0?' on':'');b.textContent=c.n;
+b.addEventListener('click',function(){D.etabs.querySelectorAll('.etab').forEach(function(t){t.classList.remove('on')});b.classList.add('on');rGrid(i)});
+D.etabs.appendChild(b);
+});
+rGrid(0);
+}
+
+function rGrid(i){
+D.egrid.innerHTML='';
+EC[i].e.forEach(function(em){
+var s=document.createElement('span');s.className='ei';s.textContent=em;
+s.addEventListener('click',function(){D.iMsg.value+=em});
+D.egrid.appendChild(s);
+});
+}
+
+function doSend(){
+var t=D.iMsg.value.trim();
+if(S.pimg){sendImg();if(t)sendTxt(t);return}
+if(t)sendTxt(t);
+}
+
+function sendTxt(t){
+if(!S.client||!S.client.connected){setS('未连接','err');return}
+var ts=Date.now();
+addMsg(t,S.user.display,true,ts);saveH({type:'chat',text:t,sender:S.user.display,sent:true,ts:ts});
+S.client.publish(CFG.topic+'/messages',JSON.stringify({type:'chat',username:S.user.name,displayName:S.user.display,text:t,ts:ts}),{qos:1});
+D.iMsg.value='';
+}
+
+function sendImg(){
+if(!S.pimg||!S.client||!S.client.connected)return;
+var ts=Date.now();
+addImg(S.pimg,S.user.display,true,ts);saveH({type:'image',data:S.pimg,sender:S.user.display,sent:true,ts:ts});
+S.client.publish(CFG.topic+'/messages',JSON.stringify({type:'image',username:S.user.name,displayName:S.user.display,imageData:S.pimg,ts:ts}),{qos:1});
+rmImg();
+}
+
+function procImg(f){
+if(f.size>10*1024*1024){alert('图片不能超过10MB');return}
+var r=new FileReader();
+r.onload=function(e){
+var img=new Image();
+img.onload=function(){
+var c=document.createElement('canvas'),mw=800,mh=800,w=img.width,h=img.height;
+if(w>mw){h=h*(mw/w);w=mw}if(h>mh){w=w*(mh/h);h=mh}
+c.width=w;c.height=h;c.getContext('2d').drawImage(img,0,0,w,h);
+var d=c.toDataURL('image/jpeg',0.7);
+S.pimg=d;D.prevImg.src=d;D.prevInfo.textContent=w+'x'+h+' · '+Math.round(d.length/1024)+'KB';
+D.ip.classList.add('open');
+};img.src=e.target.result;
+};r.readAsDataURL(f);
+}
+
+function rmImg(){S.pimg=null;D.ip.classList.remove('open');D.prevImg.src=''}
+
+function addMsg(t,sn,sent,ts){
+var d=document.createElement('div');d.className='m '+(sent?'s':'r');
+var h='';if(!sent)h+='<div class="sn">'+esc(sn)+'</div>';
+h+='<div>'+esc(t)+'</div><div class="tm">'+fmt(ts)+'</div>';
+d.innerHTML=h;D.msgs.appendChild(d);scrollBot();
+}
+
+function addEmo(em,sn,sent,ts,stk){
+var d=document.createElement('div');d.className='m '+(sent?'s':'r');
+var h='';if(!sent)h+='<div class="sn">'+esc(sn)+'</div>';
+h+='<div class="eo" style="font-size:'+(stk?'56px':'48px')+'">'+em+'</div>';
+h+='<div class="tm">'+fmt(ts)+'</div>';
+d.innerHTML=h;D.msgs.appendChild(d);scrollBot();
+}
+
+function addImg(data,sn,sent,ts){
+var d=document.createElement('div');d.className='m '+(sent?'s':'r');
+var h='';if(!sent)h+='<div class="sn">'+esc(sn)+'</div>';
+h+='<img class="mi" src="'+data+'"><div class="tm">'+fmt(ts)+'</div>';
+d.innerHTML=h;
+d.querySelector('img').addEventListener('click',function(){D.viewImg.src=data;D.iv.classList.add('open')});
+D.msgs.appendChild(d);scrollBot();
+}
+
+function addSys(t){var d=document.createElement('div');d.className='m sys';d.textContent=t;D.msgs.appendChild(d);scrollBot()}
+function scrollBot(){requestAnimationFrame(function(){D.msgs.scrollTop=D.msgs.scrollHeight})}
+
+function connect(){
+setS('正在连接...','');var idx=0;
+function tryC(i){
+if(i>=CFG.brokers.length){setS('连接失败','err');return}
+try{
+S.client=mqtt.connect(CFG.brokers[i],{clientId:'ltrj-'+S.user.name,clean:false,connectTimeout:8000,reconnectPeriod:3000,keepalive:15});
+S.client.on('connect',function(){
+setS('已连接','ok');
+S.client.subscribe(CFG.topic+'/messages',{qos:1});
+S.client.subscribe(CFG.topic+'/presence',{qos:1});
+pubPres('online');addSys(S.user.display+' 加入聊天室');
+S.hb=setInterval(function(){pubPres('online')},12000);
+S.client.publish(CFG.topic+'/presence',JSON.stringify({type:'presence_request',username:S.user.name,ts:Date.now()}));
+});
+S.client.on('message',function(tp,p){
+try{var d=JSON.parse(p.toString());if(!d)return;
+if(tp===CFG.topic+'/messages')onMsg(d);
+else if(tp===CFG.topic+'/presence')onPres(d);
+}catch(e){}
+});
+S.client.on('error',function(){});
+S.client.on('offline',function(){setS('已断开','err')});
+S.client.on('reconnect',function(){setS('重连中...','')});
+}catch(e){setTimeout(function(){tryC(i+1)},1000)}
+}
+tryC(idx);
+}
+
+function onMsg(d){
+if(d.username===S.user.name)return;
+var sn=d.displayName||d.username;
+if(d.type==='chat'){saveH({type:'chat',text:d.text,sender:sn,sent:false,ts:d.ts});addMsg(d.text,sn,false,d.ts);showNotif(sn,d.text);S.ucount++;updTitle()}
+else if(d.type==='emoji'){saveH({type:'emoji',emoji:d.emoji,sender:sn,sent:false,ts:d.ts,sticker:d.sticker});addEmo(d.emoji,sn,false,d.ts,d.sticker);showNotif(sn,'[表情]');S.ucount++;updTitle()}
+else if(d.type==='image'){saveH({type:'image',data:d.imageData,sender:sn,sent:false,ts:d.ts});addImg(d.imageData,sn,false,d.ts);showNotif(sn,'[图片]');S.ucount++;updTitle()}
+}
+
+function pubPres(s){if(!S.client||!S.client.connected)return;S.client.publish(CFG.topic+'/presence',JSON.stringify({type:'presence',username:S.user.name,displayName:S.user.display,status:s,ts:Date.now()}))}
+
+function onPres(d){
+if(d.type==='presence'){
+if(d.status==='online')S.omap[d.username]={name:d.displayName||d.username,ts:d.ts};
+else if(d.status==='offline')delete S.omap[d.username];
+renderO();
+}else if(d.type==='presence_request'){pubPres('online')}
+}
+
+function renderO(){
+var now=Date.now();
+for(var k in S.omap){if(now-S.omap[k].ts>45000)delete S.omap[k]}
+S.omap[S.user.name]={name:S.user.display,ts:now};
+var a=[];for(var k in S.omap){var sf=k===S.user.name?'（你）':'';a.push(S.omap[k].name+sf)}
+D.hdrOnline.innerHTML=a.map(function(n){return '<span class="ous"><span class="odot"></span>'+esc(n)+'</span>'}).join('');
+}
+setInterval(function(){if(S.user)renderO()},10000);
+
+function setS(t,c){D.sync.textContent=t;D.sync.className='ss'+(c?' '+c:'')}
+function esc(s){var d=document.createElement('div');d.appendChild(document.createTextNode(s));return d.innerHTML}
+function fmt(ts){var d=new Date(ts);return ('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2)}
+
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
+})();
+</script>
+</body>
+</html>
