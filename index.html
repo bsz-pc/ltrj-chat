@@ -6,6 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="theme-color" content="#0f0f0f">
+<link rel="manifest" href="manifest.json">
 <link rel="icon" id="favicon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔒</text></svg>">
 <title>隐私聊天</title>
 <style>
@@ -92,7 +93,7 @@ input,button{font-family:inherit;font-size:16px;-webkit-appearance:none;appearan
 .iv.open{display:flex}
 .iv img{max-width:95%;max-height:95%;object-fit:contain}
 
-/* Toast Notification - ALWAYS inside style tag */
+/* Toast Notification */
 .toast{position:fixed;top:-150px;left:50%;transform:translateX(-50%);width:calc(100% - 24px);max-width:420px;background:linear-gradient(135deg,#1a1a2e 0%,#16213e 100%);border:2px solid #e94560;border-radius:14px;padding:14px 16px;z-index:99998;display:flex;align-items:center;gap:12px;transition:top .4s cubic-bezier(0.34,1.56,0.64,1);cursor:pointer;box-shadow:0 8px 32px rgba(233,69,96,.5),0 0 0 1px rgba(233,69,96,.2)}
 .toast.show{top:12px}
 .toast-icon{width:42px;height:42px;background:linear-gradient(135deg,#e94560,#c23152);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;animation:toastPulse 1.5s ease infinite}
@@ -124,10 +125,28 @@ input,button{font-family:inherit;font-size:16px;-webkit-appearance:none;appearan
 .offline-box .ob-btn{background:#e94560;color:#fff;border:none;padding:12px 32px;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;width:100%}
 .offline-box .ob-btn:active{opacity:.8}
 
+/* ===== Notification Permission Guide ===== */
+.notif-guide{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.85);z-index:100000;align-items:center;justify-content:center;padding:20px}
+.notif-guide.show{display:flex}
+.ng-box{background:#1a1a2e;border:2px solid #e94560;border-radius:20px;padding:32px 24px;max-width:400px;width:100%;text-align:center;animation:slideUp .4s ease}
+.ng-icon{font-size:56px;margin-bottom:16px;animation:bellRing 1s ease infinite}
+@keyframes bellRing{0%,100%{transform:rotate(0)}10%{transform:rotate(15deg)}20%{transform:rotate(-15deg)}30%{transform:rotate(10deg)}40%{transform:rotate(-10deg)}50%{transform:rotate(0)}}
+.ng-title{font-size:20px;font-weight:700;color:#fff;margin-bottom:10px}
+.ng-desc{font-size:14px;color:#aaa;margin-bottom:20px;line-height:1.6}
+.ng-steps{text-align:left;background:#0f0f0f;border-radius:12px;padding:16px;margin-bottom:20px;border:1px solid #2a2a4a}
+.ng-step{display:flex;align-items:flex-start;gap:10px;padding:8px 0;border-bottom:1px solid #1a1a2e}
+.ng-step:last-child{border-bottom:none}
+.ng-num{width:24px;height:24px;background:#e94560;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff;flex-shrink:0}
+.ng-txt{font-size:13px;color:#ccc;line-height:1.5}
+.ng-btn{background:#e94560;color:#fff;border:none;padding:14px 32px;border-radius:12px;font-size:16px;font-weight:600;cursor:pointer;width:100%;margin-bottom:10px}
+.ng-btn:active{opacity:.8}
+.ng-skip{background:none;border:none;color:#666;font-size:13px;cursor:pointer;padding:8px}
+.ng-warn{background:rgba(233,69,96,.1);border:1px solid rgba(233,69,96,.3);border-radius:10px;padding:12px;margin-bottom:16px;font-size:12px;color:#e94560;line-height:1.5}
+
 /* Toggle Tip */
 .toggle-tip{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(26,26,46,.95);color:#eee;padding:14px 28px;border-radius:12px;font-size:15px;z-index:99999;border:1px solid #e94560;pointer-events:none;transition:opacity .3s;box-shadow:0 4px 20px rgba(0,0,0,.5)}
 
-@media(max-width:600px){.m{max-width:85%}.escroll{height:150px}}
+@media(max-width:600px){.m{max-width:85%}.escroll{height:150px}.ng-box{padding:24px 18px}}
 </style>
 </head>
 <body>
@@ -197,6 +216,23 @@ input,button{font-family:inherit;font-size:16px;-webkit-appearance:none;appearan
 </div>
 </div>
 
+<!-- Notification Permission Guide -->
+<div class="notif-guide" id="notifGuide">
+<div class="ng-box">
+<div class="ng-icon">🔔</div>
+<div class="ng-title">开启消息通知</div>
+<div class="ng-desc">开启后，即使切到其他应用也能收到新消息提醒</div>
+<div class="ng-warn" id="ngWarn" style="display:none"></div>
+<div class="ng-steps" id="ngSteps">
+<div class="ng-step"><div class="ng-num">1</div><div class="ng-txt">点击下方"允许"按钮</div></div>
+<div class="ng-step"><div class="ng-num">2</div><div class="ng-txt">浏览器会弹出权限请求，点击"允许"</div></div>
+<div class="ng-step"><div class="ng-num">3</div><div class="ng-txt">切到其他应用后，新消息会以系统通知弹出</div></div>
+</div>
+<button class="ng-btn" id="ngBtn">开启通知权限</button>
+<button class="ng-skip" id="ngSkip">暂时跳过</button>
+</div>
+</div>
+
 <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
 <script>
 (function(){
@@ -231,7 +267,8 @@ var S={
   user:null,client:null,hb:null,omap:{},pimg:null,eopen:false,
   hist:[],stor:false,visible:true,nperm:'default',
   ucount:0,audioCtx:null,soundOn:true,toastTimer:null,
-  offlineBuffer:[],reconnecting:false,lastTs:0
+  offlineBuffer:[],reconnecting:false,lastTs:0,
+  titleTimer:null,origTitle:'隐私聊天',notifGuideShown:false
 };
 var D={};
 
@@ -251,7 +288,12 @@ D.iv=$('imgViewer');D.viewImg=$('viewImg');D.bot=$('botBar');
 D.toast=$('toast');D.toastTitle=$('toastTitle');D.toastText=$('toastText');
 D.btnNotif=$('btnNotif');D.notifBadge=$('notifBadge');
 D.offlineSummary=$('offlineSummary');D.obCount=$('obCount');D.obDetail=$('obDetail');D.obBtn=$('obBtn');
+D.notifGuide=$('notifGuide');D.ngBtn=$('ngBtn');D.ngSkip=$('ngSkip');D.ngWarn=$('ngWarn');D.ngSteps=$('ngSteps');
 checkStor();bind();initVis();loadSoundPref();
+// Register service worker for offline support
+if('serviceWorker' in navigator){
+navigator.serviceWorker.register('sw.js').catch(function(){});
+}
 }
 
 function checkStor(){try{localStorage.setItem('_','1');localStorage.removeItem('_');S.stor=true}catch(e){S.stor=false}}
@@ -277,13 +319,12 @@ D.btnNotif.classList.add('muted');
 
 // ========== DYNAMIC FAVICON ==========
 function setFavicon(count){
+try{
 var canvas=document.createElement('canvas');
 canvas.width=32;canvas.height=32;
 var ctx=canvas.getContext('2d');
-// Draw base emoji
 ctx.font='28px serif';
 ctx.fillText('🔒',2,26);
-// Draw badge if count > 0
 if(count>0){
 ctx.fillStyle='#e94560';
 ctx.beginPath();
@@ -299,6 +340,7 @@ ctx.fillText(count>99?'99+':count,bx,by+1);
 var link=document.getElementById('favicon');
 if(!link){link=document.createElement('link');link.rel='icon';link.id='favicon';document.head.appendChild(link)}
 link.href=canvas.toDataURL('image/png');
+}catch(e){}
 }
 
 // ========== UNREAD COUNT PERSISTENCE ==========
@@ -341,7 +383,6 @@ try{
 if(!S.audioCtx){var C=window.AudioContext||window.webkitAudioContext;if(C)S.audioCtx=new C()}
 if(!S.audioCtx)return;
 if(S.audioCtx.state==='suspended')S.audioCtx.resume();
-// Double beep pattern
 var now=S.audioCtx.currentTime;
 var o1=S.audioCtx.createOscillator(),g1=S.audioCtx.createGain();
 o1.connect(g1);g1.connect(S.audioCtx.destination);
@@ -358,10 +399,25 @@ o2.start(now+0.2);o2.stop(now+0.4);
 }catch(e){}
 }
 
+// ========== TITLE FLASHING ==========
+function startTitleFlash(sender){
+if(S.titleTimer)return;
+var flash=true;
+var msgText='💬 '+sender;
+S.titleTimer=setInterval(function(){
+document.title=flash?msgText:S.origTitle+(S.ucount>0?' ('+S.ucount+')':'');
+flash=!flash;
+},1000);
+}
+function stopTitleFlash(){
+if(S.titleTimer){clearInterval(S.titleTimer);S.titleTimer=null}
+document.title=S.ucount>0?'('+S.ucount+') '+S.origTitle:S.origTitle;
+}
+
 // ========== NOTIFICATIONS ==========
 function showNotif(sender,body){
 try{
-// 1. Toast popup
+// 1. Toast popup (always show in-page)
 if(D.toast&&D.toastTitle&&D.toastText){
 D.toastTitle.textContent=sender;
 D.toastText.textContent=body;
@@ -373,24 +429,29 @@ S.toastTimer=setTimeout(function(){if(D.toast)D.toast.classList.remove('show')},
 if(S.soundOn&&navigator.vibrate)try{navigator.vibrate([100,50,100,50,100])}catch(e){}
 // 3. Sound
 if(S.soundOn)playNotifSound();
-// 4. Desktop notification (when page hidden)
-if(document.hidden&&'Notification' in window&&S.nperm==='granted'){
+// 4. Desktop notification (when page NOT visible)
+if(!S.visible && 'Notification' in window && S.nperm==='granted'){
 try{
-var n=new Notification(sender,{
+var n=new Notification('💬 '+sender,{
 body:body,
-tag:'ltrj-chat',
+tag:'ltrj-'+Date.now(),
 icon:'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=\'.9em\' font-size=\'90\'>💬</text></svg>',
-silent:false
+silent:false,
+requireInteraction:false
 });
-n.onclick=function(){window.focus();n.close();clearUnread();updBadge()};
-setTimeout(function(){try{n.close()}catch(e){}},8000);
+n.onclick=function(){window.focus();n.close();clearUnread();updBadge();setFavicon(0);stopTitleFlash()};
+setTimeout(function(){try{n.close()}catch(e){}},10000);
 }catch(e){}
 }
-// 5. Update count & badge
+// 5. Title flashing (when page not visible)
+if(!S.visible){
+startTitleFlash(sender);
+}
+// 6. Update count & badge
 S.ucount++;
 updBadge();
 setFavicon(S.ucount);
-// 6. Save to offline buffer
+// 7. Save to offline buffer
 S.offlineBuffer.push({sender:sender,body:body,ts:Date.now()});
 if(S.offlineBuffer.length>20)S.offlineBuffer=S.offlineBuffer.slice(-20);
 saveUnread();
@@ -398,13 +459,68 @@ saveUnread();
 }
 
 function updBadge(){
-// Title
 document.title=S.ucount>0?'('+S.ucount+') 隐私聊天':'隐私聊天';
-// Badge on button
 if(D.notifBadge){
 if(S.ucount>0){D.notifBadge.textContent=S.ucount>99?'99+':S.ucount;D.notifBadge.style.display='flex'}
 else{D.notifBadge.style.display='none'}
 }
+}
+
+// ========== NOTIFICATION PERMISSION GUIDE ==========
+function checkAndGuideNotif(){
+// Skip if already shown or granted
+if(S.notifGuideShown)return;
+if(!('Notification' in window)){
+// Browser doesn't support notifications at all (iOS Safari)
+showIOSWarning();
+return;
+}
+if(Notification.permission==='granted'){
+S.nperm='granted';
+return;
+}
+if(Notification.permission==='denied'){
+// User previously denied - show manual guide
+showDeniedGuide();
+return;
+}
+// Permission is 'default' - show guide to request
+S.notifGuideShown=true;
+D.ngWarn.style.display='none';
+D.ngSteps.innerHTML='<div class="ng-step"><div class="ng-num">1</div><div class="ng-txt">点击下方按钮</div></div><div class="ng-step"><div class="ng-num">2</div><div class="ng-txt">浏览器会弹出权限请求，点击"允许"</div></div><div class="ng-step"><div class="ng-num">3</div><div class="ng-txt">之后切到其他应用/最小化浏览器，也能收到系统通知</div></div>';
+D.notifGuide.classList.add('show');
+}
+
+function showDeniedGuide(){
+S.notifGuideShown=true;
+D.ngWarn.style.display='block';
+D.ngWarn.textContent='⚠️ 通知权限已被拒绝。请手动开启：';
+var ua=navigator.userAgent;
+var steps='';
+if(/Mac OS X/i.test(ua)&&/Safari/i.test(ua)&&!/Chrome/i.test(ua)){
+D.ngWarn.textContent='⚠️ Safari 通知权限已被拒绝。请手动开启：';
+steps='<div class="ng-step"><div class="ng-num">1</div><div class="ng-txt">打开 Safari → 设置 → 网站 → 通知</div></div><div class="ng-step"><div class="ng-num">2</div><div class="ng-txt">找到本页面，设为"允许"</div></div><div class="ng-step"><div class="ng-num">3</div><div class="ng-txt">同时检查：系统设置 → 通知 → Safari → 允许通知</div></div>';
+}else if(/Chrome/i.test(ua)){
+steps='<div class="ng-step"><div class="ng-num">1</div><div class="ng-txt">点击地址栏左边的 🔒 图标</div></div><div class="ng-step"><div class="ng-num">2</div><div class="ng-txt">找到"通知"，设为"允许"</div></div><div class="ng-step"><div class="ng-num">3</div><div class="ng-txt">刷新页面即可生效</div></div>';
+}else if(/Firefox/i.test(ua)){
+steps='<div class="ng-step"><div class="ng-num">1</div><div class="ng-txt">点击地址栏左边的 🔒 图标</div></div><div class="ng-step"><div class="ng-num">2</div><div class="ng-txt">找到"权限" → "通知" → 取消勾选"阻止新请求"</div></div><div class="ng-step"><div class="ng-num">3</div><div class="ng-txt">刷新页面，再次点击开启通知</div></div>';
+}else{
+steps='<div class="ng-step"><div class="ng-num">1</div><div class="ng-txt">打开浏览器设置 → 隐私 → 通知</div></div><div class="ng-step"><div class="ng-num">2</div><div class="ng-txt">找到本页面，设为"允许"</div></div><div class="ng-step"><div class="ng-num">3</div><div class="ng-txt">刷新页面即可生效</div></div>';
+}
+D.ngSteps.innerHTML=steps;
+D.ngBtn.textContent='我知道了';
+D.ngBtn.onclick=function(){D.notifGuide.classList.remove('show')};
+D.notifGuide.classList.add('show');
+}
+
+function showIOSWarning(){
+S.notifGuideShown=true;
+D.ngWarn.style.display='block';
+D.ngWarn.innerHTML='⚠️ 你使用的是 iPhone/iPad，Safari 浏览器不支持网页通知。<br><br>建议：将本页面"添加到主屏幕"，可获得更好的通知体验。';
+D.ngSteps.innerHTML='<div class="ng-step"><div class="ng-num">1</div><div class="ng-txt">点击 Safari 底部的分享按钮（⬆️）</div></div><div class="ng-step"><div class="ng-num">2</div><div class="ng-txt">向下滑动，点击"添加到主屏幕"</div></div><div class="ng-step"><div class="ng-num">3</div><div class="ng-txt">从主屏幕打开，获得更好的通知体验</div></div>';
+D.ngBtn.textContent='我知道了';
+D.ngBtn.onclick=function(){D.notifGuide.classList.remove('show')};
+D.notifGuide.classList.add('show');
 }
 
 // ========== OFFLINE SUMMARY ==========
@@ -433,15 +549,21 @@ function initVis(){
 document.addEventListener('visibilitychange',function(){
 S.visible=!document.hidden;
 if(!document.hidden){
-// Page became visible - clear badge but keep offline count for summary
-setFavicon(0);
+// Page became visible
+stopTitleFlash();
+setFavicon(S.ucount>0?S.ucount:0);
+}else{
+// Page hidden - start title flash if unread
+if(S.ucount>0){
+startTitleFlash('新消息');
+}
 }
 });
 // Save state before unload
 window.addEventListener('beforeunload',function(){
 saveUnread();
 });
-// Also save on pagehide (iOS)
+// iOS pagehide
 window.addEventListener('pagehide',function(){
 saveUnread();
 });
@@ -491,10 +613,10 @@ D.fInput.addEventListener('change',function(e){if(e.target.files&&e.target.files
 D.cInput.addEventListener('change',function(e){if(e.target.files&&e.target.files[0])procImg(e.target.files[0]);e.target.value=''});
 D.btnRmImg.addEventListener('click',rmImg);
 D.iv.addEventListener('click',function(){D.iv.classList.remove('open')});
-// Toast click - dismiss & scroll
+// Toast click
 D.toast.addEventListener('click',function(){
 D.toast.classList.remove('show');clearTimeout(S.toastTimer);
-clearUnread();updBadge();setFavicon(0);scrollBot();
+clearUnread();updBadge();setFavicon(0);stopTitleFlash();scrollBot();
 });
 // Notification toggle
 D.btnNotif.addEventListener('click',function(){
@@ -503,9 +625,33 @@ saveSoundPref();
 if(S.soundOn){
 showToggleTip('🔔 消息提醒已开启');
 unlockAudio();
+// If permission not granted, show guide
+if('Notification' in window && Notification.permission!=='granted'){
+setTimeout(function(){checkAndGuideNotif()},500);
+}
 }else{
 showToggleTip('🔕 消息提醒已关闭');
 }
+});
+// Notification guide buttons
+D.ngBtn.addEventListener('click',function(){
+if('Notification' in window && Notification.permission==='default'){
+Notification.requestPermission().then(function(p){
+S.nperm=p;
+D.notifGuide.classList.remove('show');
+if(p==='granted'){
+showToggleTip('✅ 通知已开启！切到其他应用也能收到提醒');
+}else if(p==='denied'){
+showDeniedGuide();
+}
+});
+}else{
+D.notifGuide.classList.remove('show');
+}
+});
+D.ngSkip.addEventListener('click',function(){
+D.notifGuide.classList.remove('show');
+showToggleTip('💡 你可以点击顶部 🔔 按钮重新开启');
 });
 // Offline summary dismiss
 D.obBtn.addEventListener('click',hideOfflineSummary);
@@ -521,10 +667,9 @@ if(CFG.users[u].pw!==p){D.loginErr.textContent='密码错误';return}
 S.user={name:u,display:CFG.users[u].name};
 D.loginErr.textContent='';
 unlockAudio();
-// Request notification permission
+// Check notification permission
 if('Notification' in window){
-if(Notification.permission==='granted')S.nperm='granted';
-else if(Notification.permission!=='denied')Notification.requestPermission().then(function(p){S.nperm=p});
+S.nperm=Notification.permission;
 }
 // Load unread count from previous session
 loadUnread();
@@ -535,7 +680,8 @@ function doLogout(){
 if(S.client){pubPres('offline');setTimeout(function(){try{S.client.end()}catch(e){};S.client=null},500)}
 clearInterval(S.hb);
 clearUnread();
-S.user=null;S.omap={};
+stopTitleFlash();
+S.user=null;S.omap={};S.notifGuideShown=false;
 D.msgs.innerHTML='';D.chat.style.display='none';D.login.style.display='flex';
 D.iUser.value='';D.iPass.value='';
 setFavicon(0);
@@ -547,6 +693,8 @@ function showChat(){
 D.login.style.display='none';D.chat.style.display='flex';
 D.hdrUser.textContent=S.user.display;
 fixIOS();loadHist();initEP();connect();
+// Show notification guide after connection
+setTimeout(function(){checkAndGuideNotif()},2000);
 }
 
 function loadHist(){
@@ -677,11 +825,9 @@ pubPres('online');
 addSys(S.user.display+' 加入聊天室');
 S.hb=setInterval(function(){pubPres('online')},12000);
 S.client.publish(CFG.topic+'/presence',JSON.stringify({type:'presence_request',username:S.user.name,ts:Date.now()}));
-// Show offline summary if there are unread messages from previous session
+// Show offline summary
 if(S.ucount>0){
 setTimeout(function(){showOfflineSummary()},800);
-}else{
-showToggleTip('✅ 消息提醒已就绪');
 }
 });
 S.client.on('message',function(tp,p){
@@ -700,7 +846,6 @@ tryC(idx);
 
 function onMsg(d){
 if(d.username===S.user.name)return;
-// Skip if this is an old message we've already seen
 if(d.ts&&d.ts<=S.lastTs)return;
 S.lastTs=d.ts;
 var sn=d.displayName||d.username;
