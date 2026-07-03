@@ -208,6 +208,21 @@ input,button{font-family:inherit;font-size:16px;-webkit-appearance:none;appearan
 <div class="pg-title">开启手机消息推送</div>
 <div class="pg-desc">即使关闭浏览器 / 切到其他应用，也能收到新消息通知</div>
 
+<!-- 推荐：微信推送 PushPlus -->
+<div class="pg-section">
+<div class="pg-section-title">⭐ 微信推送（推荐，无需安装App）</div>
+<ol class="pg-steps">
+<li><div class="pg-num">1</div><div>用微信打开 <b>pushplus.plus</b> 并扫码登录</div></li>
+<li><div class="pg-num">2</div><div>登录后复制页面上显示的 <b>token</b></div></li>
+<li><div class="pg-num">3</div><div>在下方输入框粘贴 token 并保存，消息直接推送到你的微信</div></li>
+</ol>
+<div class="pg-input-row">
+<input class="pg-input" id="pushplusInput" type="text" placeholder="粘贴 PushPlus token">
+<button class="pg-save-btn" id="pushplusSaveBtn">保存</button>
+</div>
+<div class="pg-saved-tip" id="pushplusSavedTip">✅ 微信推送已保存</div>
+</div>
+
 <!-- 苹果 iPhone -->
 <div class="pg-section">
 <div class="pg-section-title">🍎 苹果手机（iPhone）</div>
@@ -231,7 +246,7 @@ input,button{font-family:inherit;font-size:16px;-webkit-appearance:none;appearan
 <li><div class="pg-num">2</div><div>安装时允许 <b>"未知来源"</b></div></li>
 <li><div class="pg-num">3</div><div>打开 ntfy，点击 <b>"+"</b> 添加订阅，输入下方话题名称</div></li>
 </ol>
-<a class="pg-download-btn" id="ntfyApkBtn" href="https://github.com/binwiederhier/ntfy-android/releases/download/v2.9.3/ntfy-2.9.3-arm64-v8a.apk" target="_blank">⬇️ 直接下载 ntfy 安装包（APK）</a>
+<a class="pg-download-btn" id="ntfyApkBtn" href="https://github.com/binwiederhier/ntfy-android/releases/download/v1.24.0/ntfy-1.24.0-play-release.apk" target="_blank">⬇️ 直接下载 ntfy 安装包（APK）</a>
 <div class="pg-topic-box" id="pgTopicBox">
 <span class="pg-topic-text" id="pgTopicText">ltrj-push-ntfy-20260703-q8m2x7</span>
 <button class="pg-topic-copy" id="pgCopyBtn">复制</button>
@@ -276,7 +291,8 @@ hist:[],stor:false,visible:true,nperm:'default',
 ucount:0,audioCtx:null,soundOn:true,toastTimer:null,
 offlineBuffer:[],reconnecting:false,lastTs:0,
 titleTimer:null,origTitle:'隐私聊天',pushGuideShown:false,
-barkUrl:null,barkMap:{}
+barkUrl:null,barkMap:{},
+pushplusUrl:null,pushplusMap:{}
 };
 var D={};
 function $(id){return document.getElementById(id)}
@@ -295,6 +311,7 @@ D.btnNotif=$('btnNotif');D.notifBadge=$('notifBadge');
 D.offlineSummary=$('offlineSummary');D.obCount=$('obCount');D.obDetail=$('obDetail');D.obBtn=$('obBtn');
 D.pushGuide=$('pushGuide');D.pgDone=$('pgDone');D.pgSkip=$('pgSkip');
 D.barkInput=$('barkInput');D.barkSaveBtn=$('barkSaveBtn');D.barkSavedTip=$('barkSavedTip');
+D.pushplusInput=$('pushplusInput');D.pushplusSaveBtn=$('pushplusSaveBtn');D.pushplusSavedTip=$('pushplusSavedTip');
 D.pgCopyBtn=$('pgCopyBtn');D.copyTip=$('copyTip');
 checkStor();bind();initVis();loadSoundPref();
 if('serviceWorker' in navigator){navigator.serviceWorker.register('sw.js').catch(function(){});}
@@ -507,6 +524,39 @@ if(S.barkUrl)localStorage.setItem('ltrj_bark_'+S.user.name,S.barkUrl);
 else localStorage.removeItem('ltrj_bark_'+S.user.name);
 }catch(e){}
 }
+// PushPlus save/load
+function loadPushplusUrl(){
+if(!S.user)return;
+try{var v=localStorage.getItem('ltrj_pushplus_'+S.user.name);if(v)S.pushplusUrl=v.trim()}catch(e){}
+}
+function savePushplusUrl(){
+if(!S.user)return;
+try{
+if(S.pushplusUrl)localStorage.setItem('ltrj_pushplus_'+S.user.name,S.pushplusUrl);
+else localStorage.removeItem('ltrj_pushplus_'+S.user.name);
+}catch(e){}
+}
+// ========== PushPlus PUSH (WeChat) ==========
+function pushToPushplus(sender,text,type){
+if(!S.pushplusMap||!Object.keys(S.pushplusMap).length)return;
+var title,body;
+if(type==='image'){title='🖼️ 隐私聊天';body=sender+' 发送了一张图片'}
+else if(type==='emoji'){title='😊 隐私聊天';body=sender+' 发送了一个表情'}
+else{title='💬 隐私聊天';body=sender+': '+(text.length>200?text.substring(0,200)+'...':text)}
+for(var uname in S.pushplusMap){
+if(uname===S.user.name)continue;
+var token=S.pushplusMap[uname];
+if(!token)continue;
+try{
+fetch('https://www.pushplus.plus/send',{
+method:'POST',
+headers:{'Content-Type':'application/json'},
+body:JSON.stringify({token:token,title:title,content:body,template:'txt'}),
+mode:'no-cors'
+}).catch(function(){});
+}catch(e){}
+}
+}
 // Copy topic to clipboard
 function copyTopicText(){
 var topic=CFG.ntfy;
@@ -529,8 +579,9 @@ if(S.pushGuideShown)return;
 var shown=localStorage.getItem('ltrj_push_guide');
 if(shown)return;
 S.pushGuideShown=true;
-// Pre-fill bark input if already saved
+// Pre-fill inputs if already saved
 if(S.barkUrl)D.barkInput.value=S.barkUrl;
+if(S.pushplusUrl)D.pushplusInput.value=S.pushplusUrl;
 D.pushGuide.classList.add('show');
 }
 function bind(){
@@ -581,6 +632,22 @@ showToggleTip(S.barkUrl?'✅ Bark 推送已保存':'🗑️ Bark 地址已清除
 // Immediately broadcast via presence
 pubPres('online');
 });
+// PushPlus save button
+D.pushplusSaveBtn.addEventListener('click',function(){
+var val=D.pushplusInput.value.trim();
+// Validate pushplus token format (at least 8 chars, alphanumeric/underscore/dash)
+if(val&&val.length<8){
+showToggleTip('⚠️ token 格式不对，请检查');
+return;
+}
+S.pushplusUrl=val||null;
+savePushplusUrl();
+D.pushplusSavedTip.style.display='block';
+setTimeout(function(){D.pushplusSavedTip.style.display='none'},3000);
+showToggleTip(S.pushplusUrl?'✅ 微信推送已保存':'🗑️ 微信推送已清除');
+// Immediately broadcast via presence
+pubPres('online');
+});
 // Topic copy button
 D.pgCopyBtn.addEventListener('click',function(e){
 e.stopPropagation();
@@ -601,12 +668,13 @@ unlockAudio();
 if('Notification' in window)S.nperm=Notification.permission;
 loadUnread();
 loadBarkUrl();
+loadPushplusUrl();
 showChat();
 }
 function doLogout(){
 if(S.client){pubPres('offline');setTimeout(function(){try{S.client.end()}catch(e){};S.client=null},500)}
 clearInterval(S.hb);clearUnread();stopTitleFlash();
-S.user=null;S.omap={};S.pushGuideShown=false;S.barkMap={};S.barkUrl=null;
+S.user=null;S.omap={};S.pushGuideShown=false;S.barkMap={};S.barkUrl=null;S.pushplusMap={};S.pushplusUrl=null;
 D.msgs.innerHTML='';D.chat.style.display='none';D.login.style.display='flex';
 D.iUser.value='';D.iPass.value='';
 setFavicon(0);document.title='隐私聊天';
@@ -659,9 +727,10 @@ if(!S.client||!S.client.connected){setS('未连接','err');return}
 var ts=Date.now();
 addMsg(t,S.user.display,true,ts);saveH({type:'chat',text:t,sender:S.user.display,sent:true,ts:ts});
 S.client.publish(CFG.topic+'/messages',JSON.stringify({type:'chat',username:S.user.name,displayName:S.user.display,text:t,ts:ts}),{qos:1});
-// Push via both channels
+// Push via all channels
 pushToNtfy(S.user.display,t,'chat');
 pushToBark(S.user.display,t,'chat');
+pushToPushplus(S.user.display,t,'chat');
 D.iMsg.value='';
 }
 function sendImg(){
@@ -669,9 +738,10 @@ if(!S.pimg||!S.client||!S.client.connected)return;
 var ts=Date.now();
 addImg(S.pimg,S.user.display,true,ts);saveH({type:'image',data:S.pimg,sender:S.user.display,sent:true,ts:ts});
 S.client.publish(CFG.topic+'/messages',JSON.stringify({type:'image',username:S.user.name,displayName:S.user.display,imageData:S.pimg,ts:ts}),{qos:1});
-// Push via both channels
+// Push via all channels
 pushToNtfy(S.user.display,'','image');
 pushToBark(S.user.display,'','image');
+pushToPushplus(S.user.display,'','image');
 rmImg();
 }
 function procImg(f){
@@ -764,6 +834,8 @@ if(!S.client||!S.client.connected)return;
 var msg={type:'presence',username:S.user.name,displayName:S.user.display,status:s,ts:Date.now()};
 // Include bark URL in presence if available
 if(S.barkUrl)msg.bark=S.barkUrl;
+// Include pushplus token in presence if available
+if(S.pushplusUrl)msg.pushplus=S.pushplusUrl;
 S.client.publish(CFG.topic+'/presence',JSON.stringify(msg));
 }
 function onPres(d){
@@ -774,9 +846,14 @@ S.omap[d.username]={name:d.displayName||d.username,ts:d.ts};
 if(d.bark&&d.username!==S.user.name){
 S.barkMap[d.username]=d.bark;
 }
+// Store pushplus token if provided
+if(d.pushplus&&d.username!==S.user.name){
+S.pushplusMap[d.username]=d.pushplus;
+}
 }else if(d.status==='offline'){
 delete S.omap[d.username];
 delete S.barkMap[d.username];
+delete S.pushplusMap[d.username];
 }
 renderO();
 }else if(d.type==='presence_request'){pubPres('online')}
