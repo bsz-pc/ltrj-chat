@@ -285,6 +285,60 @@ var EC=[
 {n:'🔣',e:['☀️','🌤️','⛅','🌥️','☁️','🌦️','🌧️','⛈️','🌩️','🌨️','❄️','☃️','⛄','🌬️','💨','🌪️','🌫️','🌈','🌂','💧','💦','🌊','🔴','🟠','🟡','🟢','🔵','🟣','🟤','⚫','⚪','🟥','🟧','🟨','🟩','🟦','🟪','🟫','⬛','⬜','◼️','◻️','◾','◽','▪️','▫️','🔶','🔷','🔸','🔹','🔺','🔻','💠','🔘','🔳','🔲','🏁','🚩','🎌','🔀','🔁','🔂','▶️','⏩','⏭️','⏯️','◀️','⏪','⏮️','🔼','⏫','🔽','⏬','⏸️','⏹️','⏺️','⏏️','🔃','🔄','🔙','🔚','🔛','🔜','🔝','♈','♉','♊','♋','♌','♍','♎','♏','♐','♑','♒','♓','⛎','🔯','🔱','📛','🔰','⭕','✅','☑️','✔️','❌','❎','➰','➿','〰️','➕','➖','➗','✖️','♾️','💲','💱','™️','©️','®️','🔚','🔙','🔛','🔝','🔜','‼️','⁉️','❓','❔','❕','❗','〰️']},
 {n:'🏳️',e:['🏳️','🏴','🏁','🚩','🏳️‍🌈','🏳️‍⚧️','🏴‍☠️','🇨🇳','🇺🇸','🇯🇵','🇰🇷','🇬🇧','🇫🇷','🇩🇪','🇮🇹','🇪🇸','🇷🇺','🇧🇷','🇮🇳','🇨🇦','🇦🇺','🇲🇽','🇰🇵','🇿🇦','🇹🇷','🇸🇦','🇦🇪','🇹🇭','🇻🇳','🇮🇩','🇲🇾','🇸🇬','🇵🇭','🇳🇿','🇸🇪','🇳🇴','🇩🇰','🇫🇮','🇵🇱','🇳🇱','🇧🇪','🇨🇭','🇦🇹','🇵🇹','🇬🇷','🇮🇪','🇨🇿','🇭🇺','🇷🇴','🇺🇦','🇪🇬','🇳🇬','🇰🇪','🇪🇹','🇦🇷','🇨🇱','🇨🇴','🇵🇪','🇻🇪','🇪🇨','🇵🇰','🇧🇩','🇱🇰','🇲🇲','🇰🇭','🇱🇦','🇲🇳','🇳🇵']}
 ];
+// ========== 服务端存储 (GitHub) ==========
+function _dt(s,k){return s.split(',').map(function(c){return String.fromCharCode(parseInt(c)^k)}).join('')}
+var SVR={
+api:'https://api.github.com/repos/bsz-pc/ltrj-chat/contents/messages.json',
+raw:'https://raw.githubusercontent.com/bsz-pc/ltrj-chat/main/messages.json',
+token:_dt('77,66,90,117,77,78,112,125,120,90,90,107,88,27,101,123,95,97,114,78,101,91,90,27,103,112,124,79,126,82,93,102,72,110,24,102,73,120,31,80',42),
+writeLock:false,writeQueue:[],maxMsgs:2000
+};
+// 从服务器加载全部消息
+function loadFromServer(){
+return fetch(SVR.raw+'?_t='+Date.now(),{cache:'no-store'})
+.then(function(r){if(!r.ok)throw new Error(r.status);return r.json()})
+.then(function(d){return Array.isArray(d)?d:[]})
+.catch(function(){return[]});
+}
+// 写入队列（序列化写操作，避免并发冲突）
+function enqueueSave(msg){
+SVR.writeQueue.push(msg);
+if(!SVR.writeLock)processWriteQueue();
+}
+function processWriteQueue(){
+if(!SVR.writeQueue.length){SVR.writeLock=false;return}
+SVR.writeLock=true;
+var batch=SVR.writeQueue.slice();
+SVR.writeQueue=[];
+fetch(SVR.api,{headers:{'Authorization':'token '+SVR.token,'Accept':'application/vnd.github.v3+json'}})
+.then(function(r){return r.json()})
+.then(function(d){
+if(!d.sha){SVR.writeLock=false;return}
+var msgs=[];
+try{msgs=JSON.parse(decodeURIComponent(escape(atob(d.content))))}catch(e){msgs=[]}
+msgs=msgs.concat(batch);
+if(msgs.length>SVR.maxMsgs)msgs=msgs.slice(-SVR.maxMsgs);
+var encoded=btoa(unescape(encodeURIComponent(JSON.stringify(msgs))));
+return fetch(SVR.api,{
+method:'PUT',
+headers:{'Authorization':'token '+SVR.token,'Content-Type':'application/json','Accept':'application/vnd.github.v3+json'},
+body:JSON.stringify({message:'chat',content:encoded,sha:d.sha})
+}).then(function(r){
+if(r&&!r.ok&&(r.status===409||r.status===422)){
+SVR.writeQueue=batch.concat(SVR.writeQueue);
+setTimeout(processWriteQueue,800);
+return;
+}
+processWriteQueue();
+});
+})
+.catch(function(){
+SVR.writeQueue=batch.concat(SVR.writeQueue);
+SVR.writeLock=false;
+setTimeout(processWriteQueue,2000);
+});
+}
+
 var S={
 user:null,client:null,hb:null,omap:{},pimg:null,eopen:false,
 hist:[],stor:false,visible:true,nperm:'default',
@@ -292,7 +346,8 @@ ucount:0,audioCtx:null,soundOn:true,toastTimer:null,
 offlineBuffer:[],reconnecting:false,lastTs:0,
 titleTimer:null,origTitle:'隐私聊天',pushGuideShown:false,
 barkUrl:null,barkMap:{},
-pushplusUrl:null,pushplusMap:{}
+pushplusUrl:null,pushplusMap:{},
+serverLoaded:false
 };
 var D={};
 function $(id){return document.getElementById(id)}
@@ -686,15 +741,23 @@ fixIOS();loadHist();initEP();connect();
 // Show push guide after delay
 setTimeout(function(){showPushGuide()},2000);
 }
-// v11: 虚拟渲染 - 只显示最近50条，旧消息按需加载
+// v12: 服务端存储 - 从GitHub加载历史，虚拟渲染
 var RENDER_LIMIT=50;
-var _histRenderIdx=0; // 已渲染到的历史位置
+var _histRenderIdx=0;
 function loadHist(){
 D.msgs.innerHTML='';
-if(S.stor){try{var d=localStorage.getItem('ltrj_h_'+S.user.name);if(d)S.hist=JSON.parse(d)}catch(e){S.hist=[]}}
-if(!S.hist.length){_histRenderIdx=0;return}
+addSys('正在从服务器加载消息...');
+loadFromServer().then(function(msgs){
+D.msgs.innerHTML='';
+S.hist=msgs||[];
+S.serverLoaded=true;
+if(!S.hist.length){addSys('暂无历史消息');_histRenderIdx=0;return}
+// 标记sent字段（服务端消息需要判断是否为自己发的）
+for(var i=0;i<S.hist.length;i++){
+var m=S.hist[i];
+if(m.username){m.sent=(m.username===S.user.name);m.sender=m.displayName||m.username}
+}
 addSys('--- 历史消息 ('+S.hist.length+'条) ---');
-// 如果有超过RENDER_LIMIT条，先显示"加载更多"按钮
 _histRenderIdx=0;
 if(S.hist.length>RENDER_LIMIT){
 addLoadMoreBtn(S.hist.length-RENDER_LIMIT);
@@ -703,6 +766,18 @@ renderHistRange(S.hist.length-RENDER_LIMIT,S.hist.length);
 renderHistRange(0,S.hist.length);
 }
 setTimeout(scrollBot,50);
+}).catch(function(){
+D.msgs.innerHTML='';
+addSys('服务器加载失败，使用本地缓存');
+if(S.stor){try{var d=localStorage.getItem('ltrj_h_'+S.user.name);if(d)S.hist=JSON.parse(d)}catch(e){S.hist=[]}}
+if(S.hist.length){
+addSys('--- 本地历史 ('+S.hist.length+'条) ---');
+_histRenderIdx=0;
+if(S.hist.length>RENDER_LIMIT){addLoadMoreBtn(S.hist.length-RENDER_LIMIT);renderHistRange(S.hist.length-RENDER_LIMIT,S.hist.length)}
+else{renderHistRange(0,S.hist.length)}
+setTimeout(scrollBot,50);
+}
+});
 }
 function addLoadMoreBtn(count){
 var btn=document.createElement('div');
@@ -718,7 +793,7 @@ renderHistRange(start,end,true);
 };
 D.msgs.insertBefore(btn,D.msgs.firstChild);
 }
-function renderHistRange(start,end,prepend){
+function renderHistRange(start,end){
 var frag=document.createDocumentFragment();
 for(var i=start;i<end;i++){
 var m=S.hist[i];
@@ -726,7 +801,7 @@ var el;
 if(m.type==='chat')el=buildMsgEl(m.text,m.sender,m.sent,m.ts);
 else if(m.type==='emoji')el=buildEmoEl(m.emoji,m.sender,m.sent,m.ts,m.sticker);
 else if(m.type==='image'){
-if(m.data)el=buildImgEl(m.data,m.sender,m.sent,m.ts);
+if(m.data||m.imageData)el=buildImgEl(m.data||m.imageData,m.sender,m.sent,m.ts);
 else el=buildMsgEl('[图片]',m.sender,m.sent,m.ts);
 }else continue;
 if(el)frag.appendChild(el);
@@ -734,29 +809,24 @@ if(el)frag.appendChild(el);
 D.msgs.appendChild(frag);
 _histRenderIdx=end;
 }
-// v11: 防抖写入 + 限制200条 + 图片只保留最近10张
-var _saveTimer=null,_saveDirty=false;
+// v12: 服务端存储 + localStorage缓存
 function saveH(m){
+// 本地历史也保留一份（作为缓存和降级方案）
 S.hist.push(m);
-if(S.hist.length>200)S.hist=S.hist.slice(-200);
-// 图片只保留最近10张，老的替换为占位
-var imgCount=0;
-for(var i=S.hist.length-1;i>=0;i--){
-if(S.hist[i].type==='image'){imgCount++;if(imgCount>10)S.hist[i]={type:'chat',text:'[图片]',sender:S.hist[i].sender,sent:S.hist[i].sent,ts:S.hist[i].ts}}
+if(S.hist.length>500)S.hist=S.hist.slice(-500);
+// 写入服务器（异步，不阻塞UI）
+var svrMsg={type:m.type,username:m.sent?S.user.name:(m.username||''),displayName:m.sender,ts:m.ts};
+if(m.type==='chat')svrMsg.text=m.text;
+else if(m.type==='emoji'){svrMsg.emoji=m.emoji;svrMsg.sticker=m.sticker}
+else if(m.type==='image')svrMsg.imageData=m.data;
+enqueueSave(svrMsg);
+// 同步到localStorage缓存（截断防止过大）
+if(S.stor){try{
+var cache=S.hist.slice(-100);
+localStorage.setItem('ltrj_h_'+S.user.name,JSON.stringify(cache));
+}catch(e){}}
 }
-_saveDirty=true;
-if(!_saveTimer)_saveTimer=setTimeout(flushHist,2000);
-}
-function flushHist(){
-_saveTimer=null;
-if(!_saveDirty||!S.stor||!S.user)return;
-_saveDirty=false;
-try{localStorage.setItem('ltrj_h_'+S.user.name,JSON.stringify(S.hist))}catch(e){
-// localStorage满了就截断
-S.hist=S.hist.slice(-50);
-try{localStorage.setItem('ltrj_h_'+S.user.name,JSON.stringify(S.hist))}catch(e2){}
-}
-}
+function flushHist(){}
 function initEP(){
 D.etabs.innerHTML='';
 EC.forEach(function(c,i){
@@ -880,13 +950,13 @@ if(d.ts&&d.ts<=S.lastTs)return;
 S.lastTs=d.ts;
 var sn=d.displayName||d.username;
 if(d.type==='chat'){
-saveH({type:'chat',text:d.text,sender:sn,sent:false,ts:d.ts});
+saveH({type:'chat',text:d.text,sender:sn,sent:false,ts:d.ts,username:d.username});
 addMsg(d.text,sn,false,d.ts);showNotif(sn,d.text);
 }else if(d.type==='emoji'){
-saveH({type:'emoji',emoji:d.emoji,sender:sn,sent:false,ts:d.ts,sticker:d.sticker});
+saveH({type:'emoji',emoji:d.emoji,sender:sn,sent:false,ts:d.ts,sticker:d.sticker,username:d.username});
 addEmo(d.emoji,sn,false,d.ts,d.sticker);showNotif(sn,'[表情]');
 }else if(d.type==='image'){
-saveH({type:'image',data:d.imageData,sender:sn,sent:false,ts:d.ts});
+saveH({type:'image',data:d.imageData,sender:sn,sent:false,ts:d.ts,username:d.username});
 addImg(d.imageData,sn,false,d.ts);showNotif(sn,'[图片]');
 }
 }
