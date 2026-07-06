@@ -34,6 +34,8 @@ input,button{font-family:inherit;font-size:16px;-webkit-appearance:none;appearan
 .hdr-r{display:flex;align-items:center;gap:6px}
 .ubadge{background:#0f3460;padding:3px 10px;border-radius:14px;font-size:11px}
 .lout{background:none;border:1px solid #2a2a4a;color:#999;padding:4px 10px;border-radius:6px;font-size:11px;cursor:pointer}
+.clr{background:none;border:1px solid #2a2a4a;color:#999;padding:4px 10px;border-radius:6px;font-size:11px;cursor:pointer}
+.clr:active{background:rgba(233,69,96,.15);color:#e94560;border-color:#e94560}
 .obar{display:flex;align-items:center;gap:4px;padding:4px 14px;background:#16213e;border-bottom:1px solid #2a2a4a;font-size:10px;color:#999;flex-shrink:0;min-height:24px;flex-wrap:wrap}
 .odot{width:5px;height:5px;background:#4ade80;border-radius:50%;display:inline-block;flex-shrink:0}
 .ous{display:inline-flex;align-items:center;gap:3px;margin-right:6px}
@@ -156,7 +158,7 @@ input,button{font-family:inherit;font-size:16px;-webkit-appearance:none;appearan
 <div class="chat" id="chatView">
 <div class="hdr">
 <div class="hdr-l"><div class="hdr-logo">🔒</div><div class="hdr-t">隐私聊天室</div></div>
-<div class="hdr-r"><span class="ubadge" id="hdrUser"></span><button class="notif-btn" id="btnNotif" title="消息提醒开关">🔔<span class="notif-badge" id="notifBadge" style="display:none">0</span></button><button class="lout" id="btnLogout">退出</button></div>
+<div class="hdr-r"><span class="ubadge" id="hdrUser"></span><button class="notif-btn" id="btnNotif" title="消息提醒开关">🔔<span class="notif-badge" id="notifBadge" style="display:none">0</span></button><button class="clr" id="btnClear">清空</button><button class="lout" id="btnLogout">退出</button></div>
 </div>
 <div class="obar"><span class="odot"></span><span>在线：</span><span id="hdrOnline">-</span></div>
 <div class="msgs" id="msgsBox"></div>
@@ -347,7 +349,7 @@ offlineBuffer:[],reconnecting:false,lastTs:0,
 titleTimer:null,origTitle:'隐私聊天',pushGuideShown:false,
 barkUrl:null,barkMap:{},
 pushplusUrl:null,pushplusMap:{},
-serverLoaded:false
+serverLoaded:false,clearedAt:0
 };
 var D={};
 function $(id){return document.getElementById(id)}
@@ -591,6 +593,26 @@ if(S.pushplusUrl)localStorage.setItem('ltrj_pushplus_'+S.user.name,S.pushplusUrl
 else localStorage.removeItem('ltrj_pushplus_'+S.user.name);
 }catch(e){}
 }
+// ========== CLEAR HISTORY (local only) ==========
+function loadClearedAt(){
+if(!S.user)return;
+try{var v=localStorage.getItem('ltrj_cleared_'+S.user.name);if(v)S.clearedAt=parseInt(v,10)||0}catch(e){}
+}
+function doClearHistory(){
+if(!S.user)return;
+if(!confirm('确定清空你的聊天记录吗？\n\n• 清空前的消息将不再显示\n• 其他人的记录不受影响\n• 新消息正常接收'))return;
+S.clearedAt=Date.now();
+try{localStorage.setItem('ltrj_cleared_'+S.user.name,String(S.clearedAt))}catch(e){}
+// Clear local hist cache too
+try{localStorage.removeItem('ltrj_h_'+S.user.name)}catch(e){}
+// Reload view
+D.msgs.innerHTML='';
+S.hist=[];
+addSys('聊天记录已清空，新消息将正常显示');
+setTimeout(scrollBot,50);
+showToggleTip('🗑️ 聊天记录已清空');
+}
+
 // ========== PushPlus PUSH (WeChat) ==========
 function pushToPushplus(sender,text,type){
 if(!S.pushplusMap||!Object.keys(S.pushplusMap).length)return;
@@ -644,6 +666,7 @@ D.btnLogin.addEventListener('click',doLogin);
 D.iPass.addEventListener('keydown',function(e){if(e.key==='Enter')doLogin()});
 D.iUser.addEventListener('keydown',function(e){if(e.key==='Enter')D.iPass.focus()});
 D.btnLogout.addEventListener('click',doLogout);
+D.btnClear=$('btnClear');D.btnClear.addEventListener('click',doClearHistory);
 D.btnEmoji.addEventListener('click',function(){S.eopen=!S.eopen;D.ep.classList.toggle('open',S.eopen);if(S.eopen){D.iMsg.blur();scrollBot()}else{D.iMsg.focus()}});
 D.btnEmojiClose.addEventListener('click',function(){S.eopen=false;D.ep.classList.remove('open');D.iMsg.focus()});
 D.btnPic.addEventListener('click',function(){D.fInput.click()});
@@ -724,12 +747,13 @@ if('Notification' in window)S.nperm=Notification.permission;
 loadUnread();
 loadBarkUrl();
 loadPushplusUrl();
+loadClearedAt();
 showChat();
 }
 function doLogout(){
 if(S.client){pubPres('offline');setTimeout(function(){try{S.client.end()}catch(e){};S.client=null},500)}
 clearInterval(S.hb);clearUnread();stopTitleFlash();flushHist();
-S.user=null;S.omap={};S.pushGuideShown=false;S.barkMap={};S.barkUrl=null;S.pushplusMap={};S.pushplusUrl=null;
+S.user=null;S.omap={};S.pushGuideShown=false;S.barkMap={};S.barkUrl=null;S.pushplusMap={};S.pushplusUrl=null;S.clearedAt=0;
 D.msgs.innerHTML='';D.chat.style.display='none';D.login.style.display='flex';
 D.iUser.value='';D.iPass.value='';
 setFavicon(0);document.title='隐私聊天';
@@ -751,7 +775,9 @@ loadFromServer().then(function(msgs){
 D.msgs.innerHTML='';
 S.hist=msgs||[];
 S.serverLoaded=true;
-if(!S.hist.length){addSys('暂无历史消息');_histRenderIdx=0;return}
+// 过滤掉清空时间之前的消息
+if(S.clearedAt>0)S.hist=S.hist.filter(function(m){return m.ts>=S.clearedAt});
+if(!S.hist.length){addSys(S.clearedAt>0?'聊天记录已清空':'暂无历史消息');_histRenderIdx=0;return}
 // 标记sent字段（服务端消息需要判断是否为自己发的）
 for(var i=0;i<S.hist.length;i++){
 var m=S.hist[i];
@@ -770,6 +796,7 @@ setTimeout(scrollBot,50);
 D.msgs.innerHTML='';
 addSys('服务器加载失败，使用本地缓存');
 if(S.stor){try{var d=localStorage.getItem('ltrj_h_'+S.user.name);if(d)S.hist=JSON.parse(d)}catch(e){S.hist=[]}}
+if(S.clearedAt>0)S.hist=S.hist.filter(function(m){return m.ts>=S.clearedAt});
 if(S.hist.length){
 addSys('--- 本地历史 ('+S.hist.length+'条) ---');
 _histRenderIdx=0;
@@ -947,6 +974,7 @@ tryC(idx);
 function onMsg(d){
 if(d.username===S.user.name)return;
 if(d.ts&&d.ts<=S.lastTs)return;
+if(S.clearedAt>0&&d.ts&&d.ts<S.clearedAt)return;
 S.lastTs=d.ts;
 var sn=d.displayName||d.username;
 if(d.type==='chat'){
