@@ -496,8 +496,8 @@ S.visible=!document.hidden;
 if(!document.hidden){stopTitleFlash();setFavicon(S.ucount>0?S.ucount:0)}
 else if(S.ucount>0){startTitleFlash('新消息')}
 });
-window.addEventListener('beforeunload',function(){saveUnread()});
-window.addEventListener('pagehide',function(){saveUnread()});
+window.addEventListener('beforeunload',function(){saveUnread();flushHist()});
+window.addEventListener('pagehide',function(){saveUnread();flushHist()});
 }
 function showToggleTip(msg){
 var tip=document.createElement('div');tip.className='toggle-tip';tip.textContent=msg;
@@ -673,7 +673,7 @@ showChat();
 }
 function doLogout(){
 if(S.client){pubPres('offline');setTimeout(function(){try{S.client.end()}catch(e){};S.client=null},500)}
-clearInterval(S.hb);clearUnread();stopTitleFlash();
+clearInterval(S.hb);clearUnread();stopTitleFlash();flushHist();
 S.user=null;S.omap={};S.pushGuideShown=false;S.barkMap={};S.barkUrl=null;S.pushplusMap={};S.pushplusUrl=null;
 D.msgs.innerHTML='';D.chat.style.display='none';D.login.style.display='flex';
 D.iUser.value='';D.iPass.value='';
@@ -686,20 +686,77 @@ fixIOS();loadHist();initEP();connect();
 // Show push guide after delay
 setTimeout(function(){showPushGuide()},2000);
 }
+// v11: 虚拟渲染 - 只显示最近50条，旧消息按需加载
+var RENDER_LIMIT=50;
+var _histRenderIdx=0; // 已渲染到的历史位置
 function loadHist(){
 D.msgs.innerHTML='';
 if(S.stor){try{var d=localStorage.getItem('ltrj_h_'+S.user.name);if(d)S.hist=JSON.parse(d)}catch(e){S.hist=[]}}
-if(S.hist.length){
+if(!S.hist.length){_histRenderIdx=0;return}
 addSys('--- 历史消息 ('+S.hist.length+'条) ---');
-S.hist.forEach(function(m){
-if(m.type==='chat')addMsg(m.text,m.sender,m.sent,m.ts);
-else if(m.type==='emoji')addEmo(m.emoji,m.sender,m.sent,m.ts,m.sticker);
-else if(m.type==='image')addImg(m.data,m.sender,m.sent,m.ts);
-});
+// 如果有超过RENDER_LIMIT条，先显示"加载更多"按钮
+_histRenderIdx=0;
+if(S.hist.length>RENDER_LIMIT){
+addLoadMoreBtn(S.hist.length-RENDER_LIMIT);
+renderHistRange(S.hist.length-RENDER_LIMIT,S.hist.length);
+}else{
+renderHistRange(0,S.hist.length);
+}
 setTimeout(scrollBot,50);
 }
+function addLoadMoreBtn(count){
+var btn=document.createElement('div');
+btn.className='m sys';
+btn.style.cssText='cursor:pointer;color:#e94560;font-weight:600;padding:8px 16px;background:#0f0f0f;border-radius:8px;border:1px solid #2a2a4a';
+btn.textContent='⬆ 加载更多历史消息（还有'+count+'条）';
+btn.onclick=function(){
+var start=Math.max(0,_histRenderIdx-RENDER_LIMIT);
+var end=_histRenderIdx;
+btn.remove();
+if(start>0)addLoadMoreBtn(start);
+renderHistRange(start,end,true);
+};
+D.msgs.insertBefore(btn,D.msgs.firstChild);
 }
-function saveH(m){S.hist.push(m);if(S.hist.length>500)S.hist=S.hist.slice(-500);if(S.stor){try{localStorage.setItem('ltrj_h_'+S.user.name,JSON.stringify(S.hist))}catch(e){}}}
+function renderHistRange(start,end,prepend){
+var frag=document.createDocumentFragment();
+for(var i=start;i<end;i++){
+var m=S.hist[i];
+var el;
+if(m.type==='chat')el=buildMsgEl(m.text,m.sender,m.sent,m.ts);
+else if(m.type==='emoji')el=buildEmoEl(m.emoji,m.sender,m.sent,m.ts,m.sticker);
+else if(m.type==='image'){
+if(m.data)el=buildImgEl(m.data,m.sender,m.sent,m.ts);
+else el=buildMsgEl('[图片]',m.sender,m.sent,m.ts);
+}else continue;
+if(el)frag.appendChild(el);
+}
+D.msgs.appendChild(frag);
+_histRenderIdx=end;
+}
+// v11: 防抖写入 + 限制200条 + 图片只保留最近10张
+var _saveTimer=null,_saveDirty=false;
+function saveH(m){
+S.hist.push(m);
+if(S.hist.length>200)S.hist=S.hist.slice(-200);
+// 图片只保留最近10张，老的替换为占位
+var imgCount=0;
+for(var i=S.hist.length-1;i>=0;i--){
+if(S.hist[i].type==='image'){imgCount++;if(imgCount>10)S.hist[i]={type:'chat',text:'[图片]',sender:S.hist[i].sender,sent:S.hist[i].sent,ts:S.hist[i].ts}}
+}
+_saveDirty=true;
+if(!_saveTimer)_saveTimer=setTimeout(flushHist,2000);
+}
+function flushHist(){
+_saveTimer=null;
+if(!_saveDirty||!S.stor||!S.user)return;
+_saveDirty=false;
+try{localStorage.setItem('ltrj_h_'+S.user.name,JSON.stringify(S.hist))}catch(e){
+// localStorage满了就截断
+S.hist=S.hist.slice(-50);
+try{localStorage.setItem('ltrj_h_'+S.user.name,JSON.stringify(S.hist))}catch(e2){}
+}
+}
 function initEP(){
 D.etabs.innerHTML='';
 EC.forEach(function(c,i){
@@ -726,7 +783,7 @@ function sendTxt(t){
 if(!S.client||!S.client.connected){setS('未连接','err');return}
 var ts=Date.now();
 addMsg(t,S.user.display,true,ts);saveH({type:'chat',text:t,sender:S.user.display,sent:true,ts:ts});
-S.client.publish(CFG.topic+'/messages',JSON.stringify({type:'chat',username:S.user.name,displayName:S.user.display,text:t,ts:ts}),{qos:1});
+S.client.publish(CFG.topic+'/messages',JSON.stringify({type:'chat',username:S.user.name,displayName:S.user.display,text:t,ts:ts}),{qos:0});
 // Push via all channels
 pushToNtfy(S.user.display,t,'chat');
 pushToBark(S.user.display,t,'chat');
@@ -737,7 +794,7 @@ function sendImg(){
 if(!S.pimg||!S.client||!S.client.connected)return;
 var ts=Date.now();
 addImg(S.pimg,S.user.display,true,ts);saveH({type:'image',data:S.pimg,sender:S.user.display,sent:true,ts:ts});
-S.client.publish(CFG.topic+'/messages',JSON.stringify({type:'image',username:S.user.name,displayName:S.user.display,imageData:S.pimg,ts:ts}),{qos:1});
+S.client.publish(CFG.topic+'/messages',JSON.stringify({type:'image',username:S.user.name,displayName:S.user.display,imageData:S.pimg,ts:ts}),{qos:0});
 // Push via all channels
 pushToNtfy(S.user.display,'','image');
 pushToBark(S.user.display,'','image');
@@ -760,27 +817,31 @@ D.ip.classList.add('open');
 };r.readAsDataURL(f);
 }
 function rmImg(){S.pimg=null;D.ip.classList.remove('open');D.prevImg.src=''}
-function addMsg(t,sn,sent,ts){
+// v11: 拆分为 build（纯构建）+ add（追加+滚动），批量加载用build，实时消息用add
+function buildMsgEl(t,sn,sent,ts){
 var d=document.createElement('div');d.className='m '+(sent?'s':'r');
 var h='';if(!sent)h+='<div class="sn">'+esc(sn)+'</div>';
 h+='<div>'+esc(t)+'</div><div class="tm">'+fmt(ts)+'</div>';
-d.innerHTML=h;D.msgs.appendChild(d);scrollBot();
+d.innerHTML=h;return d;
 }
-function addEmo(em,sn,sent,ts,stk){
+function buildEmoEl(em,sn,sent,ts,stk){
 var d=document.createElement('div');d.className='m '+(sent?'s':'r');
 var h='';if(!sent)h+='<div class="sn">'+esc(sn)+'</div>';
 h+='<div class="eo" style="font-size:'+(stk?'56px':'48px')+'">'+em+'</div>';
 h+='<div class="tm">'+fmt(ts)+'</div>';
-d.innerHTML=h;D.msgs.appendChild(d);scrollBot();
+d.innerHTML=h;return d;
 }
-function addImg(data,sn,sent,ts){
+function buildImgEl(data,sn,sent,ts){
 var d=document.createElement('div');d.className='m '+(sent?'s':'r');
 var h='';if(!sent)h+='<div class="sn">'+esc(sn)+'</div>';
 h+='<img class="mi" src="'+data+'"><div class="tm">'+fmt(ts)+'</div>';
 d.innerHTML=h;
 d.querySelector('img').addEventListener('click',function(){D.viewImg.src=data;D.iv.classList.add('open')});
-D.msgs.appendChild(d);scrollBot();
+return d;
 }
+function addMsg(t,sn,sent,ts){D.msgs.appendChild(buildMsgEl(t,sn,sent,ts));scrollBot()}
+function addEmo(em,sn,sent,ts,stk){D.msgs.appendChild(buildEmoEl(em,sn,sent,ts,stk));scrollBot()}
+function addImg(data,sn,sent,ts){D.msgs.appendChild(buildImgEl(data,sn,sent,ts));scrollBot()}
 function addSys(t){var d=document.createElement('div');d.className='m sys';d.textContent=t;D.msgs.appendChild(d);scrollBot()}
 function scrollBot(){requestAnimationFrame(function(){D.msgs.scrollTop=D.msgs.scrollHeight})}
 function connect(){
@@ -789,12 +850,12 @@ function tryC(i){
 if(i>=CFG.brokers.length){setS('连接失败','err');S.reconnecting=false;return}
 try{
 S.client=mqtt.connect(CFG.brokers[i],{
-clientId:'ltrj-'+S.user.name,clean:false,connectTimeout:8000,reconnectPeriod:3000,keepalive:15
+clientId:'ltrj-'+S.user.name+'-'+Date.now(),clean:true,connectTimeout:6000,reconnectPeriod:3000,keepalive:12
 });
 S.client.on('connect',function(){
 setS('已连接','ok');S.reconnecting=false;
-S.client.subscribe(CFG.topic+'/messages',{qos:1});
-S.client.subscribe(CFG.topic+'/presence',{qos:1});
+S.client.subscribe(CFG.topic+'/messages',{qos:0});
+S.client.subscribe(CFG.topic+'/presence',{qos:0});
 pubPres('online');addSys(S.user.display+' 加入聊天室');
 S.hb=setInterval(function(){pubPres('online')},12000);
 S.client.publish(CFG.topic+'/presence',JSON.stringify({type:'presence_request',username:S.user.name,ts:Date.now()}));
